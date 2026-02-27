@@ -1,0 +1,19 @@
+This document describes our approach to water visualization.
+
+Output: Water-flow visualization
+
+Criteria and Properties: (Key: * means desirable)
+
+    refractivity/filtering
+    reflection *
+    3D waves that are theoretically unbounded by height
+    inter-voxel interaction --- voxels are in harmony
+    spray *
+    logical pooling
+    logical source *
+
+Highest-Level Procedure:
+
+    1. Preliminary Terrain
+    2. Simulation
+    3. Rasterization
