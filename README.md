@@ -1,4 +1,8 @@
 # cs334-game
+## Build process
+1. `cmake -B build`
+2. `cmake --build build`
+
 ## User Stories
 1. As a user, I want to see beautiful terrain
 2. As a user, I want to see trees
