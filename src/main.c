@@ -38,8 +38,10 @@ float vertices[] = {
     -0.5f,  0.5f, 0.0f   // top left 
 };
 unsigned int indices[] = {  // note that we start from 0!
-    0, 1, 3,   // first triangle
-    1, 2, 3    // second triangle
+    0, 1, 3
+};  
+unsigned int indices2[] = {  // note that we start from 0!
+    0, 3, 2    // second triangle
 };  
 
 static long file_length(FILE *file) {
@@ -142,19 +144,61 @@ int main() {
     return ERR_GLSL;
   }
 
-  glUseProgram(shaderProgram);
+  // program 2
+  FILE *fragmentShaderFile2 = fopen("resources/fragment2.glsl", "r");
+  if (fragmentShaderFile2 == NULL) {
+    fprintf(stderr, "Unable to open resources/fragment2.glsl\n");
+    return ERR_FILE;
+  }
+  int fragmentShaderSourceLength2 = (int) file_length(fragmentShaderFile);
+  if (fragmentShaderSourceLength2 == -1) {
+    fprintf(stderr, "Unable to determine length of resources/fragment2.glsl\n");
+    return ERR_FILE;
+  }
+  char *fragmentShaderSource2 = malloc(sizeof(char) * fragmentShaderSourceLength2);
+  fread(fragmentShaderSource2, fragmentShaderSourceLength2, 1, fragmentShaderFile2);
+
+  unsigned int fragmentShader2 = glCreateShader(GL_FRAGMENT_SHADER);
+  glShaderSource(fragmentShader2, 1, (const char *const *) &fragmentShaderSource2, NULL);
+  glCompileShader(fragmentShader2);
+  glGetShaderiv(fragmentShader2, GL_COMPILE_STATUS, &success);
+  if (!success) {
+    glGetShaderInfoLog(fragmentShader2, 512, NULL, infoLog);
+    fprintf(stderr, "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n%s\n", infoLog);
+    return ERR_GLSL;
+  }
+
+  unsigned int shaderProgram2 = glCreateProgram();
+
+  glAttachShader(shaderProgram2, vertexShader);
+  glAttachShader(shaderProgram2, fragmentShader2);
+  glLinkProgram(shaderProgram2);
+  glGetProgramiv(shaderProgram2, GL_LINK_STATUS, &success);
+  if (!success) {
+    glGetProgramInfoLog(shaderProgram2, 512, NULL, infoLog);
+    fprintf(stderr, "ERROR::SHADER::PROGRAM::LINKING_FAILED\n%s\n", infoLog);
+    return ERR_GLSL;
+  }
+  // end program 2
 
   // cleanup
   glDeleteShader(vertexShader);
-  glDeleteShader(fragmentShader);
   fclose(vertexShaderFile);
   vertexShaderFile = NULL;
-  fclose(fragmentShaderFile);
-  fragmentShaderFile = NULL;
   free(vertexShaderSource);
   vertexShaderSource = NULL;
+
+  glDeleteShader(fragmentShader);
+  fclose(fragmentShaderFile);
+  fragmentShaderFile = NULL;
   free(fragmentShaderSource);
   fragmentShaderSource = NULL;
+
+  glDeleteShader(fragmentShader2);
+  fclose(fragmentShaderFile2);
+  fragmentShaderFile2 = NULL;
+  free(fragmentShaderSource2);
+  fragmentShaderSource2 = NULL;
   // end cleanup
 
   unsigned int VAO, VBO, EBO;
@@ -180,12 +224,35 @@ int main() {
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
   glEnableVertexAttribArray(0);  
 
+  unsigned int VAO2, VBO2, EBO2;
+  glGenBuffers(1, &VBO2);
+  glGenBuffers(1, &EBO2);
+  glGenVertexArrays(1, &VAO2);
+  
+  glBindVertexArray(VAO2);
+
+  // glBindBuffer(GL_ARRAY_BUFFER, VBO);
+  // glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  // // 3. then set our vertex attributes pointers
+  // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+  // glEnableVertexAttribArray(0);  
+
+  // 2. copy our vertices array in a vertex buffer for OpenGL to use
+  glBindBuffer(GL_ARRAY_BUFFER, VBO2);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  // 3. copy our index array in a element buffer for OpenGL to use
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO2);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices2), indices2, GL_STATIC_DRAW);
+  // 4. then set the vertex attributes pointers
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+  glEnableVertexAttribArray(0);  
+
 
   // cleanup
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
   // end cleanup
-  // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
   while (!glfwWindowShouldClose(window)) {
     // process input
@@ -200,9 +267,11 @@ int main() {
     // glDrawArrays(GL_TRIANGLES, 0, 3);.
     glUseProgram(shaderProgram);
     glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+    glUseProgram(shaderProgram2);
+    glBindVertexArray(VAO2);
+    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
-
 
     // poll events, swap buffers, 
     glfwPollEvents();
