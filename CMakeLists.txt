@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.23)
 
-project(GraphicsClassGame)
+project(GraphicsClassGame LANGUAGES C CXX)
 
 add_executable(Game)
+target_compile_features(Game PRIVATE cxx_std_23)
 
 target_sources(Game PRIVATE
   src/main.c
