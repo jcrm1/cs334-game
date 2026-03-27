@@ -92,11 +92,12 @@ int main() {
     fprintf(stderr, "Unable to determine length of resources/vertex.glsl\n");
     return ERR_FILE;
   }
-  char *vertexShaderSource = malloc(sizeof(char) * vertexShaderSourceLength);
+  char *vertexShaderSource = malloc(sizeof(char) * (vertexShaderSourceLength + 1));
   fread(vertexShaderSource, vertexShaderSourceLength, 1, vertexShaderFile);
+  vertexShaderSource[vertexShaderSourceLength] = '\0';
 
   unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vertexShader, 1, (const char *const *) &vertexShaderSource, &vertexShaderSourceLength);
+  glShaderSource(vertexShader, 1, (const char *const *) &vertexShaderSource, NULL);
   glCompileShader(vertexShader);
   int success;
   char infoLog[512];
@@ -117,8 +118,9 @@ int main() {
     fprintf(stderr, "Unable to determine length of resources/fragment.glsl\n");
     return ERR_FILE;
   }
-  char *fragmentShaderSource = malloc(sizeof(char) * fragmentShaderSourceLength);
+  char *fragmentShaderSource = malloc(sizeof(char) * (fragmentShaderSourceLength + 1));
   fread(fragmentShaderSource, fragmentShaderSourceLength, 1, fragmentShaderFile);
+  fragmentShaderSource[fragmentShaderSourceLength] = '\0';
 
   unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
   glShaderSource(fragmentShader, 1, (const char *const *) &fragmentShaderSource, NULL);
