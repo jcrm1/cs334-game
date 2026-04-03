@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include "Shader.hpp"
+
 #define OK (0)
 #define ERR_GLFW (-1)
 #define ERR_GLAD (-2)
@@ -41,16 +43,16 @@ unsigned int indices[] = {  // note that we start from 0!
     0, 1, 2
 };
 
-static long file_length(FILE *file) {
-  if (file == NULL) return -1;
-  long pos = ftell(file);
-  int res = fseek(file, 0, SEEK_END);
-  if (res != 0) return -1;
-  long len = ftell(file);
-  res = fseek(file, pos, SEEK_SET);
-  if (res != 0) return -1;
-  return len;
-}
+// static long file_length(FILE *file) {
+//   if (file == NULL) return -1;
+//   long pos = ftell(file);
+//   int res = fseek(file, 0, SEEK_END);
+//   if (res != 0) return -1;
+//   long len = ftell(file);
+//   res = fseek(file, pos, SEEK_SET);
+//   if (res != 0) return -1;
+//   return len;
+// }
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
   printf("framebuffer_size_callback(%p, %d, %d)\n", window, width, height);
@@ -81,79 +83,7 @@ int main() {
   glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
-  FILE *vertexShaderFile = fopen("resources/vertex.glsl", "r");
-  if (vertexShaderFile == NULL) {
-    fprintf(stderr, "Unable to open resources/vertex.glsl\n");
-    return ERR_FILE;
-  }
-  int vertexShaderSourceLength = (int) file_length(vertexShaderFile);
-  if (vertexShaderSourceLength == -1) {
-    fprintf(stderr, "Unable to determine length of resources/vertex.glsl\n");
-    return ERR_FILE;
-  }
-  char *vertexShaderSource = malloc(sizeof(char) * vertexShaderSourceLength);
-  fread(vertexShaderSource, vertexShaderSourceLength, 1, vertexShaderFile);
-
-  unsigned int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-  glShaderSource(vertexShader, 1, (const char *const *) &vertexShaderSource, &vertexShaderSourceLength);
-  glCompileShader(vertexShader);
-  int success;
-  char infoLog[512];
-  glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-  if (!success) {
-    glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-    fprintf(stderr, "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n%s\n", infoLog);
-    return ERR_GLSL;
-  }
-
-  FILE *fragmentShaderFile = fopen("resources/fragment.glsl", "r");
-  if (fragmentShaderFile == NULL) {
-    fprintf(stderr, "Unable to open resources/fragment.glsl\n");
-    return ERR_FILE;
-  }
-  int fragmentShaderSourceLength = (int) file_length(fragmentShaderFile);
-  if (fragmentShaderSourceLength == -1) {
-    fprintf(stderr, "Unable to determine length of resources/fragment.glsl\n");
-    return ERR_FILE;
-  }
-  char *fragmentShaderSource = malloc(sizeof(char) * fragmentShaderSourceLength);
-  fread(fragmentShaderSource, fragmentShaderSourceLength, 1, fragmentShaderFile);
-
-  unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(fragmentShader, 1, (const char *const *) &fragmentShaderSource, NULL);
-  glCompileShader(fragmentShader);
-  glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-  if (!success) {
-    glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-    fprintf(stderr, "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n%s\n", infoLog);
-    return ERR_GLSL;
-  }
-
-  unsigned int shaderProgram = glCreateProgram();
-
-  glAttachShader(shaderProgram, vertexShader);
-  glAttachShader(shaderProgram, fragmentShader);
-  glLinkProgram(shaderProgram);
-  glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-  if (!success) {
-    glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
-    fprintf(stderr, "ERROR::SHADER::PROGRAM::LINKING_FAILED\n%s\n", infoLog);
-    return ERR_GLSL;
-  }
-
-  // cleanup
-  glDeleteShader(vertexShader);
-  fclose(vertexShaderFile);
-  vertexShaderFile = NULL;
-  free(vertexShaderSource);
-  vertexShaderSource = NULL;
-
-  glDeleteShader(fragmentShader);
-  fclose(fragmentShaderFile);
-  fragmentShaderFile = NULL;
-  free(fragmentShaderSource);
-  fragmentShaderSource = NULL;
-  // end cleanup
+  Shader shader("resources/vertex.glsl", "resources/fragment.glsl");
 
   unsigned int VAO, VBO, EBO;
   glGenBuffers(1, &VBO);
@@ -197,7 +127,7 @@ int main() {
     // glBindVertexArray(VAO);
     // glDrawArrays(GL_TRIANGLES, 0, 3);
     // glDrawArrays(GL_TRIANGLES, 0, 3);.
-    glUseProgram(shaderProgram);
+    shader.use();
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
