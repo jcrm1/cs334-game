@@ -16,12 +16,14 @@ class Shader {
     std::ifstream vertexShaderFile;
     std::ifstream fragmentShaderFile;
     vertexShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
+    fragmentShaderFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
     try {
       vertexShaderFile.open(vertexFilePath);
       fragmentShaderFile.open(fragmentFilePath);
       std::stringstream vertexShaderStream;
       std::stringstream fragmentShaderStream;
       vertexShaderStream << vertexShaderFile.rdbuf();
+      fragmentShaderStream << fragmentShaderFile.rdbuf();
       vertexShaderFile.close();
       fragmentShaderFile.close();
       vertexSource = vertexShaderStream.str();
