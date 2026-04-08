@@ -4,6 +4,13 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include "Shader.hpp"
 
 #define OK (0)
@@ -16,10 +23,18 @@
 #define WINDOW_HEIGHT (600)
 
 // 0.5PI, 4/3 PI, 5/3 PI
-static float vertices[] = {
-  -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
-  0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
-  0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
+// static float vertices[] = {
+//   -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
+//   0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
+//   0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
+// };
+
+float vertices[] = {
+  // positions // colors // texture coords
+  0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // top right
+  0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // bottom right
+  -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom left
+  -0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f // top left
 };
 
 // static float vertices[] = {
@@ -40,7 +55,8 @@ static float vertices[] = {
 //     -0.5f,  0.5f, 0.0f   // top left 
 // };
 unsigned int indices[] = {  // note that we start from 0!
-    0, 1, 2
+    0, 1, 3,
+    1, 2, 3
 };
 
 // static long file_length(FILE *file) {
@@ -105,10 +121,12 @@ int main() {
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
   // 4. then set the vertex attributes pointers
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
+  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+  glEnableVertexAttribArray(2);
 
   // cleanup
   glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -116,9 +134,72 @@ int main() {
   // end cleanup
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
+  glm::ortho(0.0f, 800.0f, 0.0f, 600.0f, 0.1f, 100.0f);
+  glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float) WINDOW_WIDTH / (float) WINDOW_HEIGHT, 0.1f, 100.0f);
+
+  glm::mat4 model = glm::mat4(1.0f);
+  model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f)); 
+  glm::mat4 view = glm::mat4(1.0f);
+  // note that we're translating the scene in the reverse direction of where we want to move
+  view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
+  glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
+
+  // texture time
+  int width, height, numChannels;
+  unsigned char *texture_data = stbi_load("resources/container.jpg", &width, &height, &numChannels, 0);
+  if (texture_data == NULL) {
+    printf("Failed to load container.jpg\n");
+    return ERR_FILE;
+  }
+  unsigned int tex1;
+  glGenTextures(1, &tex1);
+  glBindTexture(GL_TEXTURE_2D, tex1);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture_data);
+  glGenerateMipmap(GL_TEXTURE_2D);
+  stbi_image_free(texture_data);
+
+  // second texture time
+  stbi_set_flip_vertically_on_load(true);
+  texture_data = stbi_load("resources/awesomeface.png", &width, &height, &numChannels, 0);
+  if (texture_data == NULL) {
+    printf("Failed to load container.jpg\n");
+    return ERR_FILE;
+  }
+  stbi_set_flip_vertically_on_load(false);
+  unsigned int tex2;
+  glGenTextures(1, &tex2);
+  glBindTexture(GL_TEXTURE_2D, tex2);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture_data);
+  glGenerateMipmap(GL_TEXTURE_2D);
+  stbi_image_free(texture_data);
+
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, tex1);
+  glActiveTexture(GL_TEXTURE1);
+  glBindTexture(GL_TEXTURE_2D, tex2);
+
+  shader.use(); // don't forget to activate the shader before setting uniforms!  
+  glUniform1i(glGetUniformLocation(shader.id, "texture1"), 0); // set it manually
+  shader.setInt("texture2", 1); // or with shader class
+  float val = 0.0f;
   while (!glfwWindowShouldClose(window)) {
     // process input
     processInput(window);
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+      if (val >= 0.01f) val -= 0.01f;
+    }
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+      if (val <= 0.99f) val += 0.01f;
+    }
+    shader.setFloat("val", val);
 
     // render
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -128,8 +209,15 @@ int main() {
     // glDrawArrays(GL_TRIANGLES, 0, 3);
     // glDrawArrays(GL_TRIANGLES, 0, 3);.
     shader.use();
+    // int modelLoc = glGetUniformLocation(shader.id, "model");
+    // glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    // int viewLoc = glGetUniformLocation(shader.id, "model");
+    // glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    // int projLoc = glGetUniformLocation(shader.id, "model");
+    // glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+    
     glBindVertexArray(VAO);
-    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 
     // poll events, swap buffers, 
