@@ -8,7 +8,7 @@
 #include <glad/glad.h>
 
 class Shader {
-  public:
+public:
   unsigned int id;
   Shader(const char *vertexFilePath, const char *fragmentFilePath) {
     std::string vertexSource;
@@ -31,8 +31,8 @@ class Shader {
     } catch (std::ifstream::failure e) {
       fprintf(stderr, "Shader.hpp: error while attempting to read file\n");
     }
-    const char* vertexShaderCode = vertexSource.c_str();
-    const char* fragmentShaderCode = fragmentSource.c_str();
+    const char *vertexShaderCode = vertexSource.c_str();
+    const char *fragmentShaderCode = fragmentSource.c_str();
     unsigned int vertex, fragment;
     int success;
     char infoLog[512];
@@ -44,7 +44,7 @@ class Shader {
       glGetShaderInfoLog(vertex, 512, NULL, infoLog);
       fprintf(stderr, "Shader.hpp: error while compiling vertex shader\n%s\n", infoLog);
     };
-    
+
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragment, 1, &fragmentShaderCode, NULL);
     glCompileShader(fragment);
@@ -79,6 +79,9 @@ class Shader {
   }
   void setFloat(const std::string &name, float value) const {
     glUniform1f(glGetUniformLocation(id, name.c_str()), value);
+  }
+  void setMat4(const std::string &name, float *value) const {
+    glUniformMatrix4fv(glGetUniformLocation(id, name.c_str()), 1, GL_FALSE, value);
   }
 };
 
