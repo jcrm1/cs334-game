@@ -10,6 +10,7 @@ target_compile_features(Game PRIVATE cxx_std_23)
 target_sources(Game PRIVATE
   src/main.cpp
   src/Shader.hpp
+  src/Camera.hpp
   src/stb_image.h
 )
 
