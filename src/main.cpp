@@ -126,6 +126,19 @@
 //   return len;
 // }
 
+#ifdef __APPLE__
+inline uint32_t random4bytes() {
+  return arc4random();
+}
+#else
+#include <Bcrypt.h>
+inline uint32_t random4bytes() {
+  uint32_t a;
+  BCryptGenRandom(NULL, &a, 4, 0);
+  return a;
+}
+#endif
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   printf("framebuffer_size_callback(%p, %d, %d)\n", window, width, height);
   glViewport(0, 0, width, height);
@@ -233,7 +246,7 @@ int main() {
   }
   for (int x = 0; x < TERRAIN_WIDTH; x++) {
     for (int z = 0; z < TERRAIN_WIDTH; z++) {
-      uint8_t r = (uint8_t) arc4random();
+      uint8_t r = (uint8_t) random4bytes();
       float height = r / 256.0f;
       int base = (x * TERRAIN_WIDTH) + z;
       (*vertices)[base][0][0] = x - (TERRAIN_WIDTH / 2);
