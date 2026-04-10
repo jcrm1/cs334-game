@@ -19,13 +19,14 @@ Highest-Level Procedure:
     3. Rasterization
 
 Current Generalized Procedure:
-
+    //them
     1. Terrain generation (solid surfaces, not covered here)
     2. Source demarcation
+    //me
     3. General path determination (for loaded chunks)
     4. Speed Calculation
     5. Turbulence Calculation
-    6. Voxel Representation
-    7. Refraction
-    8. Reflection
-    9. Rendering
+    7. Refraction <- in shader
+    8. Reflection <- in shader
+    //them
+    9. Rendering 
