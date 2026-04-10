@@ -126,18 +126,9 @@
 //   return len;
 // }
 
-#ifdef __APPLE__
 inline uint32_t random4bytes() {
-  return arc4random();
+  return (uint32_t) random();
 }
-#else
-#include <Bcrypt.h>
-inline uint32_t random4bytes() {
-  uint32_t a;
-  BCryptGenRandom(NULL, &a, 4, 0);
-  return a;
-}
-#endif
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   printf("framebuffer_size_callback(%p, %d, %d)\n", window, width, height);
