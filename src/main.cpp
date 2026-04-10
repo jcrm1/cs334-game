@@ -19,9 +19,12 @@
 #define ERR_GLAD (-2)
 #define ERR_FILE (-3)
 #define ERR_GLSL (-4)
+#define ERR_ALLOCATE (-5)
 
 #define WINDOW_WIDTH (800)
 #define WINDOW_HEIGHT (600)
+
+#define TERRAIN_WIDTH (10000)
 
 // 0.5PI, 4/3 PI, 5/3 PI
 // static float vertices[] = {
@@ -30,57 +33,57 @@
 //   0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
 // };
 
-float vertices[] = {
-  -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-  0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
-  0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-  0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-  -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-  -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-  -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-  0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-  0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
-  0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
-  -0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
-  -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-  -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-  -0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-  -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-  -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-  -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-  -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-  0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-  0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-  0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-  0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-  0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-  0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-  -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-  0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
-  0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-  0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-  -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-  -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-  -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-  0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-  0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-  0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-  -0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
-  -0.5f, 0.5f, -0.5f, 0.0f, 1.0f
-};
+// float vertices[] = {
+//   -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+//   0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
+//   0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+//   0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+//   -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
+//   -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
+//   -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+//   0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+//   0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+//   0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
+//   -0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
+//   -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+//   -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+//   -0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+//   -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+//   -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+//   -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+//   -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+//   0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+//   0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+//   0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+//   0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+//   0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+//   0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+//   -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+//   0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
+//   0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+//   0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
+//   -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
+//   -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
+//   -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
+//   0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
+//   0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+//   0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
+//   -0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
+//   -0.5f, 0.5f, -0.5f, 0.0f, 1.0f
+// };
 
-glm::vec3 cubePositions[] = {
-  glm::vec3(0.0f, 0.0f, 0.0f),
-  glm::vec3(2.0f, 5.0f, -15.0f),
-  glm::vec3(-1.5f, -2.2f, -2.5f),
-  glm::vec3(-3.8f, -2.0f, -12.3f),
-  glm::vec3(2.4f, -0.4f, -3.5f),
-  glm::vec3(-1.7f, 3.0f, -7.5f),
-  glm::vec3(1.3f, -2.0f, -2.5f),
-  glm::vec3(1.5f, 2.0f, -2.5f),
-  glm::vec3(1.5f, 0.2f, -1.5f),
-  glm::vec3(-1.3f, 1.0f, -1.5f)
-};
+// glm::vec3 cubePositions[] = {
+//   glm::vec3(0.0f, 0.0f, 0.0f),
+//   glm::vec3(2.0f, 5.0f, -15.0f),
+//   glm::vec3(-1.5f, -2.2f, -2.5f),
+//   glm::vec3(-3.8f, -2.0f, -12.3f),
+//   glm::vec3(2.4f, -0.4f, -3.5f),
+//   glm::vec3(-1.7f, 3.0f, -7.5f),
+//   glm::vec3(1.3f, -2.0f, -2.5f),
+//   glm::vec3(1.5f, 2.0f, -2.5f),
+//   glm::vec3(1.5f, 0.2f, -1.5f),
+//   glm::vec3(-1.3f, 1.0f, -1.5f)
+// };
 
 // float vertices[] = {
 //   // positions // colors // texture coords
@@ -107,10 +110,10 @@ glm::vec3 cubePositions[] = {
 //     -0.5f, -0.5f, 0.0f,  // bottom left
 //     -0.5f,  0.5f, 0.0f   // top left
 // };
-unsigned int indices[] = { // note that we start from 0!
-  0, 1, 3,
-  1, 2, 3
-};
+// unsigned int indices[] = { // note that we start from 0!
+//   0, 1, 3,
+//   1, 2, 3
+// };
 
 // static long file_length(FILE *file) {
 //   if (file == NULL) return -1;
@@ -197,7 +200,7 @@ int main() {
   // tell GLFW to capture our mouse
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-  Shader shader("resources/vertex.glsl", "resources/fragment.glsl");
+  Shader shader("resources/vertex2.glsl", "resources/fragment2.glsl");
 
   unsigned int VAO, VBO, EBO;
   glGenBuffers(1, &VBO);
@@ -211,22 +214,68 @@ int main() {
   // // 3. then set our vertex attributes pointers
   // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
   // glEnableVertexAttribArray(0);
+  float colors[10][3] = {
+    {1.0f, 0.0f, 0.0f},
+    {0.0f, 1.0f, 0.0f},
+    {0.0f, 0.0f, 1.0f},
+    {1.0f, 1.0f, 0.0f},
+    {0.0f, 1.0f, 1.0f},
+    {1.0f, 0.0f, 1.0f},
+    {0.5f, 0.0f, 0.0f},
+    {1.0f, 0.5f, 0.0f},
+    {1.0f, 0.0f, 0.5f},
+    {1.0f, 0.5f, 0.5f},
+  };
+  float (*vertices)[TERRAIN_WIDTH * TERRAIN_WIDTH][2][3] = (float (*)[TERRAIN_WIDTH * TERRAIN_WIDTH][2][3]) malloc(sizeof(*vertices));
+  if (vertices == NULL) {
+    printf("WHAT\n");
+    return ERR_ALLOCATE;
+  }
+  for (int x = 0; x < TERRAIN_WIDTH; x++) {
+    for (int z = 0; z < TERRAIN_WIDTH; z++) {
+      uint8_t r = (uint8_t) arc4random();
+      float height = r / 256.0f;
+      int base = (x * TERRAIN_WIDTH) + z;
+      (*vertices)[base][0][0] = x - (TERRAIN_WIDTH / 2);
+      (*vertices)[base][0][1] = height;
+      (*vertices)[base][0][2] = z - (TERRAIN_WIDTH / 2);
+      (*vertices)[base][1][0] = colors[r % 10][0];
+      (*vertices)[base][1][1] = colors[r % 10][1];
+      (*vertices)[base][1][2] = colors[r % 10][2];
+    }
+  }
+  int (*indices)[(TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1) * 2][3] = (int (*)[(TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1) * 2][3]) malloc(sizeof(*indices));
+  if (indices == NULL) {
+    printf("WHAT2\n");
+    return ERR_ALLOCATE;
+  }
+  for (int x = 0; x < (TERRAIN_WIDTH - 1); x++) {
+    for (int z = 0; z < (TERRAIN_WIDTH - 1); z++) {
+      int base = (x * (TERRAIN_WIDTH - 1) + z) * 2;
+      (*indices)[base + 0][0] = (x * TERRAIN_WIDTH) + z;
+      (*indices)[base + 0][1] = ((x + 1) * TERRAIN_WIDTH) + z;
+      (*indices)[base + 0][2] = ((x + 1) * TERRAIN_WIDTH) + z + 1;
+      (*indices)[base + 1][0] = (x * TERRAIN_WIDTH) + z;
+      (*indices)[base + 1][1] = (x * TERRAIN_WIDTH) + z + 1;
+      (*indices)[base + 1][2] = ((x + 1) * TERRAIN_WIDTH) + z + 1;
+    }
+  }
 
   // 2. copy our vertices array in a vertex buffer for OpenGL to use
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(*vertices), vertices, GL_STATIC_DRAW);
   // 3. copy our index array in a element buffer for OpenGL to use
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(*indices), indices, GL_STATIC_DRAW);
   // 4. then set the vertex attributes pointers
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
-  // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-  // glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+  glEnableVertexAttribArray(1);
   // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
   // glEnableVertexAttribArray(2);
-  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
-  glEnableVertexAttribArray(1);
+  // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
+  // glEnableVertexAttribArray(1);
 
   // cleanup
   glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -234,66 +283,68 @@ int main() {
   // end cleanup
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
-  glm::ortho(0.0f, 800.0f, 0.0f, 600.0f, 0.1f, 100.0f);
-  glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, 0.1f, 100.0f);
+  // glm::ortho(0.0f, 800.0f, 0.0f, 600.0f, 0.1f, 100.0f);
+  // glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, 0.1f, 100.0f);
 
   glm::mat4 model = glm::mat4(1.0f);
-  model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+  model = glm::rotate(model, glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 view = glm::mat4(1.0f);
   // note that we're translating the scene in the reverse direction of where we want to move
   view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
   glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
 
-  // texture time
-  int width, height, numChannels;
-  unsigned char *texture_data = stbi_load("resources/container.jpg", &width, &height, &numChannels, 0);
-  if (texture_data == NULL) {
-    printf("Failed to load container.jpg\n");
-    return ERR_FILE;
-  }
-  unsigned int tex1;
-  glGenTextures(1, &tex1);
-  glBindTexture(GL_TEXTURE_2D, tex1);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture_data);
-  glGenerateMipmap(GL_TEXTURE_2D);
-  stbi_image_free(texture_data);
+  // // texture time
+  // int width, height, numChannels;
+  // unsigned char *texture_data = stbi_load("resources/container.jpg", &width, &height, &numChannels, 0);
+  // if (texture_data == NULL) {
+  //   printf("Failed to load container.jpg\n");
+  //   return ERR_FILE;
+  // }
+  // unsigned int tex1;
+  // glGenTextures(1, &tex1);
+  // glBindTexture(GL_TEXTURE_2D, tex1);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture_data);
+  // glGenerateMipmap(GL_TEXTURE_2D);
+  // stbi_image_free(texture_data);
 
-  // second texture time
-  stbi_set_flip_vertically_on_load(true);
-  texture_data = stbi_load("resources/awesomeface.png", &width, &height, &numChannels, 0);
-  if (texture_data == NULL) {
-    printf("Failed to load container.jpg\n");
-    return ERR_FILE;
-  }
-  stbi_set_flip_vertically_on_load(false);
-  unsigned int tex2;
-  glGenTextures(1, &tex2);
-  glBindTexture(GL_TEXTURE_2D, tex2);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture_data);
-  glGenerateMipmap(GL_TEXTURE_2D);
-  stbi_image_free(texture_data);
+  // // second texture time
+  // stbi_set_flip_vertically_on_load(true);
+  // texture_data = stbi_load("resources/awesomeface.png", &width, &height, &numChannels, 0);
+  // if (texture_data == NULL) {
+  //   printf("Failed to load container.jpg\n");
+  //   return ERR_FILE;
+  // }
+  // stbi_set_flip_vertically_on_load(false);
+  // unsigned int tex2;
+  // glGenTextures(1, &tex2);
+  // glBindTexture(GL_TEXTURE_2D, tex2);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture_data);
+  // glGenerateMipmap(GL_TEXTURE_2D);
+  // stbi_image_free(texture_data);
 
-  glActiveTexture(GL_TEXTURE0);
-  glBindTexture(GL_TEXTURE_2D, tex1);
-  glActiveTexture(GL_TEXTURE1);
-  glBindTexture(GL_TEXTURE_2D, tex2);
+  // glActiveTexture(GL_TEXTURE0);
+  // glBindTexture(GL_TEXTURE_2D, tex1);
+  // glActiveTexture(GL_TEXTURE1);
+  // glBindTexture(GL_TEXTURE_2D, tex2);
 
-  shader.use();                                                // don't forget to activate the shader before setting uniforms!
-  glUniform1i(glGetUniformLocation(shader.id, "texture1"), 0); // set it manually
-  shader.setInt("texture2", 1);                                // or with shader class
+  // shader.use();                                                // don't forget to activate the shader before setting uniforms!
+  // glUniform1i(glGetUniformLocation(shader.id, "texture1"), 0); // set it manually
+  // shader.setInt("texture2", 1);                                // or with shader class
+  // // end texture time
+
   float val = 0.2f;
 
   glm::mat4 trans = glm::mat4(1.0f);
   trans = glm::translate(trans, glm::vec3(0.5f, -0.5f, 0.0f));
-  trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
+  // trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
 
   glEnable(GL_DEPTH_TEST);
 
@@ -327,7 +378,7 @@ int main() {
     // glDrawArrays(GL_TRIANGLES, 0, 3);
     // glDrawArrays(GL_TRIANGLES, 0, 3);.
     shader.use();
-    model = glm::rotate(model, (float)glfwGetTime() * glm::radians(0.5f), glm::vec3(0.5f, 1.0f, 0.0f));
+    // model = glm::rotate(model, (float)glfwGetTime() * glm::radians(0.5f), glm::vec3(0.5f, 1.0f, 0.0f));
     int modelLoc = glGetUniformLocation(shader.id, "model");
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
     // int viewLoc = glGetUniformLocation(shader.id, "view");
@@ -341,16 +392,16 @@ int main() {
     glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans));
 
     glBindVertexArray(VAO);
-    for (unsigned int i = 0; i < 10; i++) {
-      glm::mat4 model = glm::mat4(1.0f);
-      model = glm::translate(model, cubePositions[i]);
-      float angle = 20.0f * i;
-      model = glm::rotate(model, glm::radians(angle),
-                          glm::vec3(1.0f, 0.3f, 0.5f));
-      shader.setMat4("model", glm::value_ptr(model));
-      glDrawArrays(GL_TRIANGLES, 0, 36);
-    }
-    // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    // for (unsigned int i = 0; i < 10; i++) {
+    //   glm::mat4 model = glm::mat4(1.0f);
+    //   model = glm::translate(model, cubePositions[i]);
+    //   float angle = 20.0f * i;
+    //   model = glm::rotate(model, glm::radians(angle),
+    //                       glm::vec3(1.0f, 0.3f, 0.5f));
+    //   shader.setMat4("model", glm::value_ptr(model));
+    //   glDrawArrays(GL_TRIANGLES, 0, 36);
+    // }
+    glDrawElements(GL_TRIANGLES, (TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
     // glDrawArrays(GL_TRIANGLES, 0, 36);
     // glm::mat4 trans2 = glm::translate(trans, glm::vec3(-1.0f, 1.0f, 0.0f));
     // glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans2));
