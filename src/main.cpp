@@ -24,7 +24,7 @@
 #define WINDOW_WIDTH (800)
 #define WINDOW_HEIGHT (600)
 
-#define TERRAIN_WIDTH (10000)
+#define TERRAIN_WIDTH (100)
 
 // 0.5PI, 4/3 PI, 5/3 PI
 // static float vertices[] = {
