@@ -127,7 +127,7 @@
 // }
 
 inline uint32_t random4bytes() {
-  return (uint32_t) random();
+  return (uint32_t) rand();
 }
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
