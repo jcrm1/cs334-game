@@ -1,0 +1,55 @@
+# Workspace C/C++ formatting (used by VS Code C/C++ extension via clang-format)
+BasedOnStyle: LLVM
+IndentWidth: 2
+TabWidth: 2
+UseTab: Never
+
+# Avoid 4-space continuation indents (common source of "why is this 4 spaces?" in
+# braced initializer lists and wrapped statements).
+ContinuationIndentWidth: 2
+
+# Specifically control indentation inside braced initializer lists.
+BracedInitializerIndentWidth: 2
+
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: false
+  AfterControlStatement: false
+  AfterEnum: false
+  AfterFunction: false
+  AfterNamespace: false
+  AfterStruct: false
+  AfterUnion: false
+  # Put variable/array initializer braces on the next line, e.g.:
+  # float vertices[] =
+  # {
+  #   ...
+  # };
+  AfterVariable: true
+  BeforeCatch: false
+  BeforeElse: false
+  IndentBraces: false
+
+# Match Shader.hpp: access modifiers are indented with members.
+AccessModifierOffset: -2
+
+# Keep long OpenGL / fprintf lines as-is.
+ColumnLimit: 0
+
+# Keep include order as written.
+SortIncludes: false
+IncludeBlocks: Preserve
+
+# Pointer/reference style
+DerivePointerAlignment: false
+PointerAlignment: Right
+ReferenceAlignment: Right
+
+# Spacing
+SpaceBeforeParens: ControlStatements
+SpaceAfterCStyleCast: false
+
+# Keep short single-statement ifs on one line, e.g.:
+#   if (val <= 0.99f) val += 0.01f;
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+BreakBeforeCloseBracketBracedList: true
