@@ -26,108 +26,8 @@
 
 #define TERRAIN_WIDTH (100)
 
-// 0.5PI, 4/3 PI, 5/3 PI
-// static float vertices[] = {
-//   -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
-//   0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
-//   0.0f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
-// };
-
-// float vertices[] = {
-//   -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-//   0.5f, -0.5f, -0.5f, 1.0f, 0.0f,
-//   0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-//   0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-//   -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-//   -0.5f, -0.5f, -0.5f, 0.0f, 0.0f,
-//   -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-//   0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-//   0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
-//   0.5f, 0.5f, 0.5f, 1.0f, 1.0f,
-//   -0.5f, 0.5f, 0.5f, 0.0f, 1.0f,
-//   -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-//   -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-//   -0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-//   -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-//   -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-//   -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-//   -0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-//   0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-//   0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-//   0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-//   0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-//   0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-//   0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-//   -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-//   0.5f, -0.5f, -0.5f, 1.0f, 1.0f,
-//   0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-//   0.5f, -0.5f, 0.5f, 1.0f, 0.0f,
-//   -0.5f, -0.5f, 0.5f, 0.0f, 0.0f,
-//   -0.5f, -0.5f, -0.5f, 0.0f, 1.0f,
-//   -0.5f, 0.5f, -0.5f, 0.0f, 1.0f,
-//   0.5f, 0.5f, -0.5f, 1.0f, 1.0f,
-//   0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-//   0.5f, 0.5f, 0.5f, 1.0f, 0.0f,
-//   -0.5f, 0.5f, 0.5f, 0.0f, 0.0f,
-//   -0.5f, 0.5f, -0.5f, 0.0f, 1.0f
-// };
-
-// glm::vec3 cubePositions[] = {
-//   glm::vec3(0.0f, 0.0f, 0.0f),
-//   glm::vec3(2.0f, 5.0f, -15.0f),
-//   glm::vec3(-1.5f, -2.2f, -2.5f),
-//   glm::vec3(-3.8f, -2.0f, -12.3f),
-//   glm::vec3(2.4f, -0.4f, -3.5f),
-//   glm::vec3(-1.7f, 3.0f, -7.5f),
-//   glm::vec3(1.3f, -2.0f, -2.5f),
-//   glm::vec3(1.5f, 2.0f, -2.5f),
-//   glm::vec3(1.5f, 0.2f, -1.5f),
-//   glm::vec3(-1.3f, 1.0f, -1.5f)
-// };
-
-// float vertices[] = {
-//   // positions // colors // texture coords
-//   0.5f, 0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, // top right
-//   0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, // bottom right
-//   -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, // bottom left
-//   -0.5f, 0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f // top left
-// };
-
-// static float vertices[] = {
-//   0.5f, 0.5f, 0.0f, // top right
-//   0.5f, -0.5f, 0.0f, // bottom right
-//   -0.5f, -0.5f, 0.0f, // bottom left
-//   -0.5f, 0.5f, 0.0f // top left
-// };
-
-// static unsigned int indices[] = { // note that we start from 0!
-//   0, 1, 3, // first triangle
-//   1, 2, 3 // second triangle
-// };
-// float vertices[] = {
-//      0.5f,  0.5f, 0.0f,  // top right
-//      0.5f, -0.5f, 0.0f,  // bottom right
-//     -0.5f, -0.5f, 0.0f,  // bottom left
-//     -0.5f,  0.5f, 0.0f   // top left
-// };
-// unsigned int indices[] = { // note that we start from 0!
-//   0, 1, 3,
-//   1, 2, 3
-// };
-
-// static long file_length(FILE *file) {
-//   if (file == NULL) return -1;
-//   long pos = ftell(file);
-//   int res = fseek(file, 0, SEEK_END);
-//   if (res != 0) return -1;
-//   long len = ftell(file);
-//   res = fseek(file, pos, SEEK_SET);
-//   if (res != 0) return -1;
-//   return len;
-// }
-
 inline uint32_t random4bytes() {
-  return (uint32_t) rand();
+  return (uint32_t)rand();
 }
 
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
@@ -141,42 +41,39 @@ void processInput(GLFWwindow *window) {
 
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
-float lastX = WINDOW_WIDTH/ 2.0f;
+float lastX = WINDOW_WIDTH / 2.0f;
 float lastY = WINDOW_HEIGHT / 2.0f;
 bool firstMouse = true;
 
 // timing
-float deltaTime = 0.0f;	// time between current frame and last frame
+float deltaTime = 0.0f; // time between current frame and last frame
 float lastFrame = 0.0f;
 
 // glfw: whenever the mouse moves, this callback is called
 // -------------------------------------------------------
-void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
-{
-    float xpos = static_cast<float>(xposIn);
-    float ypos = static_cast<float>(yposIn);
+void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
+  float xpos = static_cast<float>(xposIn);
+  float ypos = static_cast<float>(yposIn);
 
-    if (firstMouse)
-    {
-        lastX = xpos;
-        lastY = ypos;
-        firstMouse = false;
-    }
-
-    float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
-
+  if (firstMouse) {
     lastX = xpos;
     lastY = ypos;
+    firstMouse = false;
+  }
 
-    camera.ProcessMouseMovement(xoffset, yoffset);
+  float xoffset = xpos - lastX;
+  float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+
+  lastX = xpos;
+  lastY = ypos;
+
+  camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
 // ----------------------------------------------------------------------
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
-{
-    camera.ProcessMouseScroll(static_cast<float>(yoffset));
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+  camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
 
 int main() {
@@ -235,9 +132,10 @@ int main() {
     printf("WHAT\n");
     return ERR_ALLOCATE;
   }
+  // x, y, z, r, g, b
   for (int x = 0; x < TERRAIN_WIDTH; x++) {
     for (int z = 0; z < TERRAIN_WIDTH; z++) {
-      uint8_t r = (uint8_t) random4bytes();
+      uint8_t r = (uint8_t)random4bytes();
       float height = r / 256.0f;
       int base = (x * TERRAIN_WIDTH) + z;
       (*vertices)[base][0][0] = x - (TERRAIN_WIDTH / 2);
@@ -274,7 +172,7 @@ int main() {
   // 4. then set the vertex attributes pointers
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
   // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
   // glEnableVertexAttribArray(2);
