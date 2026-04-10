@@ -17,3 +17,15 @@ Highest-Level Procedure:
     1. Preliminary Terrain
     2. Simulation
     3. Rasterization
+
+Current Generalized Procedure:
+
+    1. Terrain generation (solid surfaces, not covered here)
+    2. Source demarcation
+    3. General path determination (for loaded chunks)
+    4. Speed Calculation
+    5. Turbulence Calculation
+    6. Voxel Representation
+    7. Refraction
+    8. Reflection
+    9. Rendering
