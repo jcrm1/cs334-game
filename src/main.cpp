@@ -35,10 +35,6 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, width, height);
 }
 
-void processInput(GLFWwindow *window) {
-  if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, true);
-}
-
 // camera
 Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
 float lastX = WINDOW_WIDTH / 2.0f;
@@ -127,16 +123,16 @@ int main() {
     {1.0f, 0.0f, 0.5f},
     {1.0f, 0.5f, 0.5f},
   };
-  float (*vertices)[TERRAIN_WIDTH * TERRAIN_WIDTH][2][3] = (float (*)[TERRAIN_WIDTH * TERRAIN_WIDTH][2][3]) malloc(sizeof(*vertices));
+  float (*vertices)[TERRAIN_WIDTH * TERRAIN_WIDTH][3][3] = (float (*)[TERRAIN_WIDTH * TERRAIN_WIDTH][3][3]) malloc(sizeof(*vertices));
   if (vertices == NULL) {
     printf("WHAT\n");
     return ERR_ALLOCATE;
   }
-  // x, y, z, r, g, b
+  // VERTEX LAYOUT: x, y, z, r, g, b, nx, ny, nz
   for (int x = 0; x < TERRAIN_WIDTH; x++) {
     for (int z = 0; z < TERRAIN_WIDTH; z++) {
       uint8_t r = (uint8_t)random4bytes();
-      float height = r / 256.0f;
+      float height = r / 128.0f;
       int base = (x * TERRAIN_WIDTH) + z;
       (*vertices)[base][0][0] = x - (TERRAIN_WIDTH / 2);
       (*vertices)[base][0][1] = height;
@@ -144,6 +140,9 @@ int main() {
       (*vertices)[base][1][0] = colors[r % 10][0];
       (*vertices)[base][1][1] = colors[r % 10][1];
       (*vertices)[base][1][2] = colors[r % 10][2];
+      (*vertices)[base][2][0] = 0.0f;
+      (*vertices)[base][2][1] = 0.0f;
+      (*vertices)[base][2][2] = 0.0f;
     }
   }
   int (*indices)[(TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1) * 2][3] = (int (*)[(TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1) * 2][3]) malloc(sizeof(*indices));
@@ -154,13 +153,67 @@ int main() {
   for (int x = 0; x < (TERRAIN_WIDTH - 1); x++) {
     for (int z = 0; z < (TERRAIN_WIDTH - 1); z++) {
       int base = (x * (TERRAIN_WIDTH - 1) + z) * 2;
-      (*indices)[base + 0][0] = (x * TERRAIN_WIDTH) + z;
-      (*indices)[base + 0][1] = ((x + 1) * TERRAIN_WIDTH) + z;
-      (*indices)[base + 0][2] = ((x + 1) * TERRAIN_WIDTH) + z + 1;
-      (*indices)[base + 1][0] = (x * TERRAIN_WIDTH) + z;
-      (*indices)[base + 1][1] = (x * TERRAIN_WIDTH) + z + 1;
-      (*indices)[base + 1][2] = ((x + 1) * TERRAIN_WIDTH) + z + 1;
+
+      // triangle 1
+      int tx = (x * TERRAIN_WIDTH) + z;
+      int ty = ((x + 1) * TERRAIN_WIDTH) + z;
+      int tz = ((x + 1) * TERRAIN_WIDTH) + z + 1;
+      (*indices)[base + 0][0] = tx;
+      (*indices)[base + 0][1] = ty;
+      (*indices)[base + 0][2] = tz;
+      // triangle 1 face normal
+      // there's probably some library function to do this stuff and it probably uses vector ops but i dunno how to do that
+      float *v0 = (*vertices)[tx][0];
+      float *v1 = (*vertices)[ty][0];
+      float *v2 = (*vertices)[tz][0];
+      glm::vec3 p0(v0[0], v0[1], v0[2]);
+      glm::vec3 p1(v1[0], v1[1], v1[2]);
+      glm::vec3 p2(v2[0], v2[1], v2[2]);
+      // Use swapped cross order so a flat XZ plane points +Y.
+      glm::vec3 faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
+      (*vertices)[tx][2][0] += faceNormal.x;
+      (*vertices)[tx][2][1] += faceNormal.y;
+      (*vertices)[tx][2][2] += faceNormal.z;
+      (*vertices)[ty][2][0] += faceNormal.x;
+      (*vertices)[ty][2][1] += faceNormal.y;
+      (*vertices)[ty][2][2] += faceNormal.z;
+      (*vertices)[tz][2][0] += faceNormal.x;
+      (*vertices)[tz][2][1] += faceNormal.y;
+      (*vertices)[tz][2][2] += faceNormal.z;
+
+      // triangle 2
+      tx = (x * TERRAIN_WIDTH) + z;
+      ty = (x * TERRAIN_WIDTH) + z + 1;
+      tz = ((x + 1) * TERRAIN_WIDTH) + z + 1;
+      (*indices)[base + 1][0] = tx;
+      (*indices)[base + 1][1] = ty;
+      (*indices)[base + 1][2] = tz;
+      // triangle 2 face normal
+      v0 = (*vertices)[tx][0];
+      v1 = (*vertices)[ty][0];
+      v2 = (*vertices)[tz][0];
+      p0 = glm::vec3(v0[0], v0[1], v0[2]);
+      p1 = glm::vec3(v1[0], v1[1], v1[2]);
+      p2 = glm::vec3(v2[0], v2[1], v2[2]);
+      faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
+      (*vertices)[tx][2][0] += faceNormal.x;
+      (*vertices)[tx][2][1] += faceNormal.y;
+      (*vertices)[tx][2][2] += faceNormal.z;
+      (*vertices)[ty][2][0] += faceNormal.x;
+      (*vertices)[ty][2][1] += faceNormal.y;
+      (*vertices)[ty][2][2] += faceNormal.z;
+      (*vertices)[tz][2][0] += faceNormal.x;
+      (*vertices)[tz][2][1] += faceNormal.y;
+      (*vertices)[tz][2][2] += faceNormal.z;
     }
+  }
+  // normalize normals
+  for (int i = 0; i < TERRAIN_WIDTH * TERRAIN_WIDTH; i++) {
+    float *normal = (*vertices)[i][2];
+    float len = sqrtf((normal[0] * normal[0]) + (normal[1] * normal[1]) + (normal[2] * normal[2]));
+    normal[0] /= len;
+    normal[1] /= len;
+    normal[2] /= len;
   }
 
   // 2. copy our vertices array in a vertex buffer for OpenGL to use
@@ -170,10 +223,12 @@ int main() {
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(*indices), indices, GL_STATIC_DRAW);
   // 4. then set the vertex attributes pointers
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
+  glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *)(6 * sizeof(float)));
+  glEnableVertexAttribArray(2);
   // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
   // glEnableVertexAttribArray(2);
   // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
@@ -242,35 +297,30 @@ int main() {
   // shader.setInt("texture2", 1);                                // or with shader class
   // // end texture time
 
-  float val = 0.2f;
-
-  glm::mat4 trans = glm::mat4(1.0f);
-  trans = glm::translate(trans, glm::vec3(0.5f, -0.5f, 0.0f));
-  // trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0.0f, 0.0f, 1.0f));
-
   glEnable(GL_DEPTH_TEST);
 
   // auto x = glm::vec3(0.01f, 0.0f, 0.0f);
   // auto y = glm::vec3(0.0f, 0.01f, 0.0f);
   // auto z = glm::vec3(0.0f, 0.0f, 0.01f);
 
+  glm::mat4 normalMatrix = glm::transpose(glm::inverse(model));
+
   while (!glfwWindowShouldClose(window)) {
     float currentFrame = static_cast<float>(glfwGetTime());
     deltaTime = currentFrame - lastFrame;
     lastFrame = currentFrame;
     // process input
-    processInput(window);
-    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-      if (val >= 0.01f) val -= 0.01f;
-    }
-    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-      if (val <= 0.99f) val += 0.01f;
-    }
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, true);
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camera.ProcessKeyboard(FORWARD, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.ProcessKeyboard(BACKWARD, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.ProcessKeyboard(LEFT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.ProcessKeyboard(RIGHT, deltaTime);
-    shader.setFloat("val", val);
+    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) camera.ProcessKeyboard(UP, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
+    // if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) camera.ModifySpeed(0.1f);
+    // if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) camera.ModifySpeed(-0.1f);
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.SetSpeed(5.0f);
+    else camera.SetSpeed(2.5f);
 
     // render
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -280,18 +330,11 @@ int main() {
     // glDrawArrays(GL_TRIANGLES, 0, 3);
     // glDrawArrays(GL_TRIANGLES, 0, 3);.
     shader.use();
-    // model = glm::rotate(model, (float)glfwGetTime() * glm::radians(0.5f), glm::vec3(0.5f, 1.0f, 0.0f));
-    int modelLoc = glGetUniformLocation(shader.id, "model");
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-    // int viewLoc = glGetUniformLocation(shader.id, "view");
-    // glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+    shader.setMat4("model", glm::value_ptr(model));
     glm::mat4 view = camera.GetViewMatrix();
     shader.setMat4("view", glm::value_ptr(view));
-    int projLoc = glGetUniformLocation(shader.id, "projection");
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-
-    unsigned int transformLoc = glGetUniformLocation(shader.id, "transform");
-    glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans));
+    shader.setMat4("projection", glm::value_ptr(projection));
+    shader.setMat4("normalMatrix", glm::value_ptr(normalMatrix));
 
     glBindVertexArray(VAO);
     // for (unsigned int i = 0; i < 10; i++) {
