@@ -128,9 +128,9 @@ int main() {
   float yf = y / 100.0f;
   for (int vz = 0; vz < y; vz++) {
     for (int vx = 0; vx < x; vx++) {
-      int base = (vz * y) + vx;
+      int base = (vz * x) + vx;
       vertices[base][0][0] = vx / xf;
-      vertices[base][0][1] = heightmap_data[base] / 64.0f;
+      vertices[base][0][1] = heightmap_data[base] / 32.0f;
       vertices[base][0][2] = vz / yf;
       if (heightmap_data[base] > heightmap_max) heightmap_max = heightmap_data[base];
       if (heightmap_data[base] < heightmap_min) heightmap_min = heightmap_data[base];
@@ -145,11 +145,11 @@ int main() {
   }
   for (int iz = 0; iz < y - 1; iz++) {
     for (int ix = 0; ix < x - 1; ix++) {
-       int base = (iz * (y - 1) + ix) * 2;
-       // triangle 1
-      int tx = (iz * y) + ix;
-      int ty = ((iz + 1) * y) + ix;
-      int tz = ((iz + 1) * y) + ix + 1;
+      int base = (iz * (x - 1) + ix) * 2;
+      // triangle 1
+      int tx = (iz * x) + ix;
+      int ty = ((iz + 1) * x) + ix;
+      int tz = ((iz + 1) * x) + ix + 1;
       if (iz < 5 && ix < 5) printf("iz %d ix %d tx %d ty %d tz %d\n", iz, ix, tx, ty, tz);
       indices[base + 0][0] = tx;
       indices[base + 0][1] = ty;
@@ -175,9 +175,9 @@ int main() {
       vertices[tz][1][2] += faceNormal.z;
 
       // triangle 2
-      tx = (iz * y) + ix;
-      ty = (iz * y) + ix + 1;
-      tz = ((iz + 1) * y) + ix + 1;
+      tx = (iz * x) + ix;
+      ty = (iz * x) + ix + 1;
+      tz = ((iz + 1) * x) + ix + 1;
       indices[base + 1][0] = tx;
       indices[base + 1][1] = ty;
       indices[base + 1][2] = tz;

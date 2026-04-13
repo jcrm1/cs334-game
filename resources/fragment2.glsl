@@ -8,7 +8,11 @@ in vec3 vColor;
 // const vec3 lightPos = vec3(200.0, 200.0, 0.0);
 
 void main() {
-    FragColor = vec4(vColor, 1.0);
+    if (vColor.y < 0.35) {
+        FragColor = vec4(0.0, vColor.y, clamp(vColor.y * 4, 0.0, 1.0), 1.0);
+    } else {
+        FragColor = vec4(vColor, 1.0);
+    }
     // vec3 lightDir = normalize(lightPos - vPos);
     // vec3 normal = normalize(vNormal);
 

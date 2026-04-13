@@ -15,6 +15,6 @@ void main()
    gl_Position = projection * view * model * vec4(aPos, 1.0);
    // vPos = vec3(model * vec4(aPos, 1.0));
    // vNormal = vec3(normalMatrix * vec4(aNormal, 0.0));
-   vColor = vec3(aPos.y / 4.0, aPos.y / 4.0, aPos.y / 4.0);
+   vColor = vec3(aPos.y / 8.0, aPos.y / 8.0, aPos.y / 8.0);
    // vColor = vec3(1.0, 0.0, 0.0);
 }
