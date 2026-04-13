@@ -20,11 +20,10 @@
 #define ERR_FILE (-3)
 #define ERR_GLSL (-4)
 #define ERR_ALLOCATE (-5)
+#define ERR_STBI (-6)
 
 #define WINDOW_WIDTH (800)
 #define WINDOW_HEIGHT (600)
-
-#define TERRAIN_WIDTH (100)
 
 inline uint32_t random4bytes() {
   return (uint32_t)rand();
@@ -111,128 +110,131 @@ int main() {
   // // 3. then set our vertex attributes pointers
   // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
   // glEnableVertexAttribArray(0);
-  float colors[10][3] = {
-    {1.0f, 0.0f, 0.0f},
-    {0.0f, 1.0f, 0.0f},
-    {0.0f, 0.0f, 1.0f},
-    {1.0f, 1.0f, 0.0f},
-    {0.0f, 1.0f, 1.0f},
-    {1.0f, 0.0f, 1.0f},
-    {0.5f, 0.0f, 0.0f},
-    {1.0f, 0.5f, 0.0f},
-    {1.0f, 0.0f, 0.5f},
-    {1.0f, 0.5f, 0.5f},
-  };
-  float (*vertices)[TERRAIN_WIDTH * TERRAIN_WIDTH][3][3] = (float (*)[TERRAIN_WIDTH * TERRAIN_WIDTH][3][3]) malloc(sizeof(*vertices));
+  int x, y, numChannels;
+  unsigned char *heightmap_data = stbi_load("resources/nashville.png", &x, &y, &numChannels, 1);
+  if (heightmap_data == NULL) {
+    printf("Error while loading image\n");
+    return ERR_STBI;
+  }
+  printf("Loaded file with %d channels, x: %d, y: %d\n", numChannels, x, y);
+  float (*vertices)[2][3] = (float (*)[2][3]) malloc((y * x) * sizeof(*vertices));
   if (vertices == NULL) {
-    printf("WHAT\n");
+    printf("Failed to allocate memory for vertices\n");
     return ERR_ALLOCATE;
   }
-  // VERTEX LAYOUT: x, y, z, r, g, b, nx, ny, nz
-  for (int x = 0; x < TERRAIN_WIDTH; x++) {
-    for (int z = 0; z < TERRAIN_WIDTH; z++) {
-      uint8_t r = (uint8_t)random4bytes();
-      float height = r / 128.0f;
-      int base = (x * TERRAIN_WIDTH) + z;
-      (*vertices)[base][0][0] = x - (TERRAIN_WIDTH / 2);
-      (*vertices)[base][0][1] = height;
-      (*vertices)[base][0][2] = z - (TERRAIN_WIDTH / 2);
-      (*vertices)[base][1][0] = colors[r % 10][0];
-      (*vertices)[base][1][1] = colors[r % 10][1];
-      (*vertices)[base][1][2] = colors[r % 10][2];
-      (*vertices)[base][2][0] = 0.0f;
-      (*vertices)[base][2][1] = 0.0f;
-      (*vertices)[base][2][2] = 0.0f;
+  unsigned char heightmap_min = 0xFF;
+  unsigned char heightmap_max = 0;
+  float xf = x / 100.0f;
+  float yf = y / 100.0f;
+  for (int vz = 0; vz < y; vz++) {
+    for (int vx = 0; vx < x; vx++) {
+      int base = (vz * y) + vx;
+      vertices[base][0][0] = vx / xf;
+      vertices[base][0][1] = heightmap_data[base] / 64.0f;
+      vertices[base][0][2] = vz / yf;
+      if (heightmap_data[base] > heightmap_max) heightmap_max = heightmap_data[base];
+      if (heightmap_data[base] < heightmap_min) heightmap_min = heightmap_data[base];
     }
   }
-  int (*indices)[(TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1) * 2][3] = (int (*)[(TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1) * 2][3]) malloc(sizeof(*indices));
+  stbi_image_free(heightmap_data);
+  printf("Created vertices. min: %d max: %d\n", heightmap_min, heightmap_max);
+  unsigned int (*indices)[3] = (unsigned int (*)[3]) malloc(((y - 1) * (x - 1) * 2) * sizeof(*indices));
   if (indices == NULL) {
-    printf("WHAT2\n");
+    printf("Failed to allocate memory for indices\n");
     return ERR_ALLOCATE;
   }
-  for (int x = 0; x < (TERRAIN_WIDTH - 1); x++) {
-    for (int z = 0; z < (TERRAIN_WIDTH - 1); z++) {
-      int base = (x * (TERRAIN_WIDTH - 1) + z) * 2;
-
-      // triangle 1
-      int tx = (x * TERRAIN_WIDTH) + z;
-      int ty = ((x + 1) * TERRAIN_WIDTH) + z;
-      int tz = ((x + 1) * TERRAIN_WIDTH) + z + 1;
-      (*indices)[base + 0][0] = tx;
-      (*indices)[base + 0][1] = ty;
-      (*indices)[base + 0][2] = tz;
+  for (int iz = 0; iz < y - 1; iz++) {
+    for (int ix = 0; ix < x - 1; ix++) {
+       int base = (iz * (y - 1) + ix) * 2;
+       // triangle 1
+      int tx = (iz * y) + ix;
+      int ty = ((iz + 1) * y) + ix;
+      int tz = ((iz + 1) * y) + ix + 1;
+      if (iz < 5 && ix < 5) printf("iz %d ix %d tx %d ty %d tz %d\n", iz, ix, tx, ty, tz);
+      indices[base + 0][0] = tx;
+      indices[base + 0][1] = ty;
+      indices[base + 0][2] = tz;
       // triangle 1 face normal
       // there's probably some library function to do this stuff and it probably uses vector ops but i dunno how to do that
-      float *v0 = (*vertices)[tx][0];
-      float *v1 = (*vertices)[ty][0];
-      float *v2 = (*vertices)[tz][0];
+      float *v0 = vertices[tx][0];
+      float *v1 = vertices[ty][0];
+      float *v2 = vertices[tz][0];
       glm::vec3 p0(v0[0], v0[1], v0[2]);
       glm::vec3 p1(v1[0], v1[1], v1[2]);
       glm::vec3 p2(v2[0], v2[1], v2[2]);
       // Use swapped cross order so a flat XZ plane points +Y.
       glm::vec3 faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      (*vertices)[tx][2][0] += faceNormal.x;
-      (*vertices)[tx][2][1] += faceNormal.y;
-      (*vertices)[tx][2][2] += faceNormal.z;
-      (*vertices)[ty][2][0] += faceNormal.x;
-      (*vertices)[ty][2][1] += faceNormal.y;
-      (*vertices)[ty][2][2] += faceNormal.z;
-      (*vertices)[tz][2][0] += faceNormal.x;
-      (*vertices)[tz][2][1] += faceNormal.y;
-      (*vertices)[tz][2][2] += faceNormal.z;
+      vertices[tx][1][0] += faceNormal.x;
+      vertices[tx][1][1] += faceNormal.y;
+      vertices[tx][1][2] += faceNormal.z;
+      vertices[ty][1][0] += faceNormal.x;
+      vertices[ty][1][1] += faceNormal.y;
+      vertices[ty][1][2] += faceNormal.z;
+      vertices[tz][1][0] += faceNormal.x;
+      vertices[tz][1][1] += faceNormal.y;
+      vertices[tz][1][2] += faceNormal.z;
 
       // triangle 2
-      tx = (x * TERRAIN_WIDTH) + z;
-      ty = (x * TERRAIN_WIDTH) + z + 1;
-      tz = ((x + 1) * TERRAIN_WIDTH) + z + 1;
-      (*indices)[base + 1][0] = tx;
-      (*indices)[base + 1][1] = ty;
-      (*indices)[base + 1][2] = tz;
+      tx = (iz * y) + ix;
+      ty = (iz * y) + ix + 1;
+      tz = ((iz + 1) * y) + ix + 1;
+      indices[base + 1][0] = tx;
+      indices[base + 1][1] = ty;
+      indices[base + 1][2] = tz;
       // triangle 2 face normal
-      v0 = (*vertices)[tx][0];
-      v1 = (*vertices)[ty][0];
-      v2 = (*vertices)[tz][0];
+      v0 = vertices[tx][0];
+      v1 = vertices[ty][0];
+      v2 = vertices[tz][0];
       p0 = glm::vec3(v0[0], v0[1], v0[2]);
       p1 = glm::vec3(v1[0], v1[1], v1[2]);
       p2 = glm::vec3(v2[0], v2[1], v2[2]);
       faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      (*vertices)[tx][2][0] += faceNormal.x;
-      (*vertices)[tx][2][1] += faceNormal.y;
-      (*vertices)[tx][2][2] += faceNormal.z;
-      (*vertices)[ty][2][0] += faceNormal.x;
-      (*vertices)[ty][2][1] += faceNormal.y;
-      (*vertices)[ty][2][2] += faceNormal.z;
-      (*vertices)[tz][2][0] += faceNormal.x;
-      (*vertices)[tz][2][1] += faceNormal.y;
-      (*vertices)[tz][2][2] += faceNormal.z;
+      vertices[tx][1][0] += faceNormal.x;
+      vertices[tx][1][1] += faceNormal.y;
+      vertices[tx][1][2] += faceNormal.z;
+      vertices[ty][1][0] += faceNormal.x;
+      vertices[ty][1][1] += faceNormal.y;
+      vertices[ty][1][2] += faceNormal.z;
+      vertices[tz][1][0] += faceNormal.x;
+      vertices[tz][1][1] += faceNormal.y;
+      vertices[tz][1][2] += faceNormal.z;
     }
   }
+  printf("Created indices\n");
   // normalize normals
-  for (int i = 0; i < TERRAIN_WIDTH * TERRAIN_WIDTH; i++) {
-    float *normal = (*vertices)[i][2];
+  for (int i = 0; i < y * x; i++) {
+    float *normal = vertices[i][1];
     float len = sqrtf((normal[0] * normal[0]) + (normal[1] * normal[1]) + (normal[2] * normal[2]));
     normal[0] /= len;
     normal[1] /= len;
     normal[2] /= len;
   }
+  printf("Normalized normals\n");
+
+  // float colors[10][3] = {
+  //   {1.0f, 0.0f, 0.0f},
+  //   {0.0f, 1.0f, 0.0f},
+  //   {0.0f, 0.0f, 1.0f},
+  //   {1.0f, 1.0f, 0.0f},
+  //   {0.0f, 1.0f, 1.0f},
+  //   {1.0f, 0.0f, 1.0f},
+  //   {0.5f, 0.0f, 0.0f},
+  //   {1.0f, 0.5f, 0.0f},
+  //   {1.0f, 0.0f, 0.5f},
+  //   {1.0f, 0.5f, 0.5f},
+  // };
 
   // 2. copy our vertices array in a vertex buffer for OpenGL to use
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(*vertices), vertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, (y * x) * sizeof(*vertices), vertices, GL_STATIC_DRAW);
   // 3. copy our index array in a element buffer for OpenGL to use
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(*indices), indices, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, ((y - 1) * (x - 1) * 2) * sizeof(*indices), indices, GL_STATIC_DRAW);
   // 4. then set the vertex attributes pointers
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *)(3 * sizeof(float)));
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
-  glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * sizeof(float), (void *)(6 * sizeof(float)));
-  glEnableVertexAttribArray(2);
-  // glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
-  // glEnableVertexAttribArray(2);
-  // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void *)(3 * sizeof(float)));
-  // glEnableVertexAttribArray(1);
 
   // cleanup
   glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -304,7 +306,7 @@ int main() {
   // auto z = glm::vec3(0.0f, 0.0f, 0.01f);
 
   glm::mat4 normalMatrix = glm::transpose(glm::inverse(model));
-
+  unsigned long frameCount = 1;
   while (!glfwWindowShouldClose(window)) {
     float currentFrame = static_cast<float>(glfwGetTime());
     deltaTime = currentFrame - lastFrame;
@@ -346,7 +348,7 @@ int main() {
     //   shader.setMat4("model", glm::value_ptr(model));
     //   glDrawArrays(GL_TRIANGLES, 0, 36);
     // }
-    glDrawElements(GL_TRIANGLES, (TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
     // glDrawArrays(GL_TRIANGLES, 0, 36);
     // glm::mat4 trans2 = glm::translate(trans, glm::vec3(-1.0f, 1.0f, 0.0f));
     // glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans2));
@@ -356,6 +358,8 @@ int main() {
     // poll events, swap buffers,
     glfwPollEvents();
     glfwSwapBuffers(window);
+    printf("Frame %ld\n", frameCount);
+    frameCount++;
   }
   glfwTerminate();
   return OK;
