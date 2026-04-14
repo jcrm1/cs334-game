@@ -129,9 +129,9 @@ int main() {
   for (int vz = 0; vz < y; vz++) {
     for (int vx = 0; vx < x; vx++) {
       int base = (vz * x) + vx;
-      vertices[base][0][0] = vx / xf;
+      vertices[base][0][0] = (vx / xf) - ((x / xf) / 2);
       vertices[base][0][1] = heightmap_data[base] / 32.0f;
-      vertices[base][0][2] = vz / yf;
+      vertices[base][0][2] = vz / yf - ((y / yf) / 2);
       if (heightmap_data[base] > heightmap_max) heightmap_max = heightmap_data[base];
       if (heightmap_data[base] < heightmap_min) heightmap_min = heightmap_data[base];
     }
