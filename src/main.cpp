@@ -305,6 +305,10 @@ int main() {
   // auto y = glm::vec3(0.0f, 0.01f, 0.0f);
   // auto z = glm::vec3(0.0f, 0.0f, 0.01f);
 
+  // clear color
+  glm::vec4 clearColor(0.878f, 0.918f, 0.969f, 1.0f);
+  glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+
   glm::mat4 normalMatrix = glm::transpose(glm::inverse(model));
   unsigned long frameCount = 1;
   while (!glfwWindowShouldClose(window)) {
@@ -325,7 +329,6 @@ int main() {
     else camera.SetSpeed(2.5f);
 
     // render
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     // glUseProgram(shaderProgram);
     // glBindVertexArray(VAO);
@@ -337,6 +340,8 @@ int main() {
     shader.setMat4("view", glm::value_ptr(view));
     shader.setMat4("projection", glm::value_ptr(projection));
     shader.setMat4("normalMatrix", glm::value_ptr(normalMatrix));
+    shader.setVec3("cameraPos", camera.Position);
+    shader.setVec4("clearColor", clearColor);
 
     glBindVertexArray(VAO);
     // for (unsigned int i = 0; i < 10; i++) {
@@ -358,7 +363,7 @@ int main() {
     // poll events, swap buffers,
     glfwPollEvents();
     glfwSwapBuffers(window);
-    printf("Frame %ld\n", frameCount);
+    // printf("Frame %ld\n", frameCount);
     frameCount++;
   }
   glfwTerminate();

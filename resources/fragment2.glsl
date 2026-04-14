@@ -2,17 +2,32 @@
 out vec4 FragColor;
 
 // in vec3 vNormal;
-// in vec3 vPos;
+in vec3 vPos;
 in vec3 vColor;
+
+uniform vec3 cameraPos;
+uniform vec4 clearColor;
+
+const float fogStart = 25;
+const float fogLength = 50;
 
 // const vec3 lightPos = vec3(200.0, 200.0, 0.0);
 
 void main() {
+    vec3 outColor = vec3(1.0,0.0,0.0);
     if (vColor.y < 0.35) {
-        FragColor = vec4(0.0, vColor.y, clamp(vColor.y * 4, 0.0, 1.0), 1.0);
+        outColor = vec3(0.0, vColor.y, clamp(vColor.y * 4, 0.0, 1.0));
     } else {
-        FragColor = vec4(vColor, 1.0);
+        outColor = vColor;
     }
+    float dist = length(vPos - cameraPos);
+    if (dist > fogStart + fogLength) {
+        discard;
+    } else if (dist > fogStart) {
+        outColor = mix(outColor, clearColor.xyz, min((mod(dist - fogStart, fogLength)) / fogStart, 1.0));
+    }
+    FragColor = vec4(outColor, 1.0);
+
     // vec3 lightDir = normalize(lightPos - vPos);
     // vec3 normal = normalize(vNormal);
 
