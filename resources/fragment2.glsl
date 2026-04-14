@@ -8,7 +8,7 @@ in vec3 vColor;
 uniform vec3 cameraPos;
 uniform vec4 clearColor;
 
-const float fogStart = 25;
+const float fogStart = 50;
 const float fogLength = 50;
 
 // const vec3 lightPos = vec3(200.0, 200.0, 0.0);

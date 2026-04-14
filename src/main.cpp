@@ -35,7 +35,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 }
 
 // camera
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(glm::vec3(0.0f, 10.0f, 0.0f));
 float lastX = WINDOW_WIDTH / 2.0f;
 float lastY = WINDOW_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -124,13 +124,13 @@ int main() {
   }
   unsigned char heightmap_min = 0xFF;
   unsigned char heightmap_max = 0;
-  float xf = x / 100.0f;
-  float yf = y / 100.0f;
+  float xf = x / 200.0f;
+  float yf = y / 200.0f;
   for (int vz = 0; vz < y; vz++) {
     for (int vx = 0; vx < x; vx++) {
       int base = (vz * x) + vx;
       vertices[base][0][0] = (vx / xf) - ((x / xf) / 2);
-      vertices[base][0][1] = heightmap_data[base] / 32.0f;
+      vertices[base][0][1] = heightmap_data[base] / 16.0f;
       vertices[base][0][2] = vz / yf - ((y / yf) / 2);
       if (heightmap_data[base] > heightmap_max) heightmap_max = heightmap_data[base];
       if (heightmap_data[base] < heightmap_min) heightmap_min = heightmap_data[base];
@@ -250,7 +250,7 @@ int main() {
   glm::mat4 view = glm::mat4(1.0f);
   // note that we're translating the scene in the reverse direction of where we want to move
   view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-  glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 100.0f);
+  glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 500.0f);
 
   // // texture time
   // int width, height, numChannels;
@@ -325,7 +325,7 @@ int main() {
     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
     // if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) camera.ModifySpeed(0.1f);
     // if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) camera.ModifySpeed(-0.1f);
-    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.SetSpeed(5.0f);
+    if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.SetSpeed(10.0f);
     else camera.SetSpeed(2.5f);
 
     // render
