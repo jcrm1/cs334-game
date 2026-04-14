@@ -35,7 +35,7 @@ void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
 }
 
 // camera
-Camera camera(glm::vec3(0.0f, 10.0f, 0.0f));
+Camera camera(glm::vec3(0.0f, 20.0f, 0.0f));
 float lastX = WINDOW_WIDTH / 2.0f;
 float lastY = WINDOW_HEIGHT / 2.0f;
 bool firstMouse = true;
@@ -98,18 +98,6 @@ int main() {
 
   Shader shader("resources/vertex2.glsl", "resources/fragment2.glsl");
 
-  unsigned int VAO, VBO, EBO;
-  glGenBuffers(1, &VBO);
-  glGenBuffers(1, &EBO);
-  glGenVertexArrays(1, &VAO);
-
-  glBindVertexArray(VAO);
-
-  // glBindBuffer(GL_ARRAY_BUFFER, VBO);
-  // glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-  // // 3. then set our vertex attributes pointers
-  // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-  // glEnableVertexAttribArray(0);
   int x, y, numChannels;
   unsigned char *heightmap_data = stbi_load("resources/nashville.png", &x, &y, &numChannels, 1);
   if (heightmap_data == NULL) {
@@ -211,18 +199,12 @@ int main() {
   }
   printf("Normalized normals\n");
 
-  // float colors[10][3] = {
-  //   {1.0f, 0.0f, 0.0f},
-  //   {0.0f, 1.0f, 0.0f},
-  //   {0.0f, 0.0f, 1.0f},
-  //   {1.0f, 1.0f, 0.0f},
-  //   {0.0f, 1.0f, 1.0f},
-  //   {1.0f, 0.0f, 1.0f},
-  //   {0.5f, 0.0f, 0.0f},
-  //   {1.0f, 0.5f, 0.0f},
-  //   {1.0f, 0.0f, 0.5f},
-  //   {1.0f, 0.5f, 0.5f},
-  // };
+  unsigned int VAO, VBO, EBO;
+  glGenBuffers(1, &VBO);
+  glGenBuffers(1, &EBO);
+  glGenVertexArrays(1, &VAO);
+
+  glBindVertexArray(VAO);
 
   // 2. copy our vertices array in a vertex buffer for OpenGL to use
   glBindBuffer(GL_ARRAY_BUFFER, VBO);
@@ -241,10 +223,7 @@ int main() {
   glBindVertexArray(0);
   // end cleanup
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
-  // glm::ortho(0.0f, 800.0f, 0.0f, 600.0f, 0.1f, 100.0f);
-  // glm::mat4 proj = glm::perspective(glm::radians(45.0f), (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT, 0.1f, 100.0f);
-
+  
   glm::mat4 model = glm::mat4(1.0f);
   model = glm::rotate(model, glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 view = glm::mat4(1.0f);
@@ -252,58 +231,7 @@ int main() {
   view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
   glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 500.0f);
 
-  // // texture time
-  // int width, height, numChannels;
-  // unsigned char *texture_data = stbi_load("resources/container.jpg", &width, &height, &numChannels, 0);
-  // if (texture_data == NULL) {
-  //   printf("Failed to load container.jpg\n");
-  //   return ERR_FILE;
-  // }
-  // unsigned int tex1;
-  // glGenTextures(1, &tex1);
-  // glBindTexture(GL_TEXTURE_2D, tex1);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, texture_data);
-  // glGenerateMipmap(GL_TEXTURE_2D);
-  // stbi_image_free(texture_data);
-
-  // // second texture time
-  // stbi_set_flip_vertically_on_load(true);
-  // texture_data = stbi_load("resources/awesomeface.png", &width, &height, &numChannels, 0);
-  // if (texture_data == NULL) {
-  //   printf("Failed to load container.jpg\n");
-  //   return ERR_FILE;
-  // }
-  // stbi_set_flip_vertically_on_load(false);
-  // unsigned int tex2;
-  // glGenTextures(1, &tex2);
-  // glBindTexture(GL_TEXTURE_2D, tex2);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, texture_data);
-  // glGenerateMipmap(GL_TEXTURE_2D);
-  // stbi_image_free(texture_data);
-
-  // glActiveTexture(GL_TEXTURE0);
-  // glBindTexture(GL_TEXTURE_2D, tex1);
-  // glActiveTexture(GL_TEXTURE1);
-  // glBindTexture(GL_TEXTURE_2D, tex2);
-
-  // shader.use();                                                // don't forget to activate the shader before setting uniforms!
-  // glUniform1i(glGetUniformLocation(shader.id, "texture1"), 0); // set it manually
-  // shader.setInt("texture2", 1);                                // or with shader class
-  // // end texture time
-
   glEnable(GL_DEPTH_TEST);
-
-  // auto x = glm::vec3(0.01f, 0.0f, 0.0f);
-  // auto y = glm::vec3(0.0f, 0.01f, 0.0f);
-  // auto z = glm::vec3(0.0f, 0.0f, 0.01f);
 
   // clear color
   glm::vec4 clearColor(0.878f, 0.918f, 0.969f, 1.0f);
