@@ -29,8 +29,12 @@ inline uint32_t random4bytes() {
   return (uint32_t)rand();
 }
 
+static int window_width = WINDOW_WIDTH;
+static int window_height = WINDOW_HEIGHT;
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
   printf("framebuffer_size_callback(%p, %d, %d)\n", window, width, height);
+  window_width = width;
+  window_height = height;
   glViewport(0, 0, width, height);
 }
 
@@ -88,7 +92,8 @@ int main() {
     printf("Failed to initialize GLAD\n");
     return ERR_GLAD;
   }
-  glViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
+  glfwGetFramebufferSize(window, &window_width, &window_height);
+  glViewport(0, 0, window_width, window_height);
   glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
   glfwSetCursorPosCallback(window, mouse_callback);
   glfwSetScrollCallback(window, scroll_callback);
@@ -97,6 +102,8 @@ int main() {
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
   Shader shader("resources/vertex2.glsl", "resources/fragment2.glsl");
+  Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
+  Shader occlusion_shader("resources/vertex2.glsl", "resources/occlusion_fragment.glsl");
 
   int x, y, numChannels;
   unsigned char *heightmap_data = stbi_load("resources/nashville.png", &x, &y, &numChannels, 1);
@@ -105,7 +112,7 @@ int main() {
     return ERR_STBI;
   }
   printf("Loaded file with %d channels, x: %d, y: %d\n", numChannels, x, y);
-  float (*vertices)[2][3] = (float (*)[2][3]) malloc((y * x) * sizeof(*vertices));
+  float (*vertices)[2][3] = (float (*)[2][3])malloc((y * x) * sizeof(*vertices));
   if (vertices == NULL) {
     printf("Failed to allocate memory for vertices\n");
     return ERR_ALLOCATE;
@@ -126,7 +133,7 @@ int main() {
   }
   stbi_image_free(heightmap_data);
   printf("Created vertices. min: %d max: %d\n", heightmap_min, heightmap_max);
-  unsigned int (*indices)[3] = (unsigned int (*)[3]) malloc(((y - 1) * (x - 1) * 2) * sizeof(*indices));
+  unsigned int (*indices)[3] = (unsigned int (*)[3])malloc(((y - 1) * (x - 1) * 2) * sizeof(*indices));
   if (indices == NULL) {
     printf("Failed to allocate memory for indices\n");
     return ERR_ALLOCATE;
@@ -218,25 +225,81 @@ int main() {
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
   glEnableVertexAttribArray(1);
 
+  // screen effects setup begin
+  float fullscreen_vertices[] = {
+    -1.0f, -1.0f,
+    3.0f, -1.0f,
+    -1.0f, 3.0f
+  };
+  unsigned int screen_vao, screen_vbo;
+  glGenBuffers(1, &screen_vbo);
+  glGenVertexArrays(1, &screen_vao);
+  glBindVertexArray(screen_vao);
+
+  glBindBuffer(GL_ARRAY_BUFFER, screen_vbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(fullscreen_vertices), fullscreen_vertices, GL_STATIC_DRAW);
+
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void *)0);
+  glEnableVertexAttribArray(0);
+  // screen effects setup end
+
   // cleanup
   glBindBuffer(GL_ARRAY_BUFFER, 0);
   glBindVertexArray(0);
   // end cleanup
+
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-  
+
   glm::mat4 model = glm::mat4(1.0f);
   model = glm::rotate(model, glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
   glm::mat4 view = glm::mat4(1.0f);
   // note that we're translating the scene in the reverse direction of where we want to move
   view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-  glm::mat4 projection = glm::perspective(glm::radians(45.0f), 800.0f / 600.0f, 0.1f, 500.0f);
-
-  glEnable(GL_DEPTH_TEST);
+  glm::mat4 projection = glm::perspective(glm::radians(45.0f), ((float) window_width) / ((float) window_height), 0.1f, 500.0f);
 
   // clear color
   glm::vec4 clearColor(0.878f, 0.918f, 0.969f, 1.0f);
-  glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
 
+  unsigned int tex;
+  glGenTextures(1, &tex);
+  glBindTexture(GL_TEXTURE_2D, tex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, window_width, window_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  unsigned int fbo;
+  glGenFramebuffers(1, &fbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+
+  unsigned int rbo;
+  glGenRenderbuffers(1, &rbo);
+  glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+  unsigned int tex2;
+  glGenTextures(1, &tex2);
+  glBindTexture(GL_TEXTURE_2D, tex2);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, window_width, window_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  unsigned int fbo2;
+  glGenFramebuffers(1, &fbo2);
+  glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex2, 0);
+
+  unsigned int rbo2;
+  glGenRenderbuffers(1, &rbo2);
+  glBindRenderbuffer(GL_RENDERBUFFER, rbo2);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo2);
+  
   glm::mat4 normalMatrix = glm::transpose(glm::inverse(model));
   unsigned long frameCount = 1;
   while (!glfwWindowShouldClose(window)) {
@@ -256,12 +319,12 @@ int main() {
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.SetSpeed(10.0f);
     else camera.SetSpeed(2.5f);
 
-    // render
+    // render scene
+    glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glViewport(0, 0, window_width, window_height);
+    glEnable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    // glUseProgram(shaderProgram);
-    // glBindVertexArray(VAO);
-    // glDrawArrays(GL_TRIANGLES, 0, 3);
-    // glDrawArrays(GL_TRIANGLES, 0, 3);.
     shader.use();
     shader.setMat4("model", glm::value_ptr(model));
     glm::mat4 view = camera.GetViewMatrix();
@@ -272,20 +335,49 @@ int main() {
     shader.setVec4("clearColor", clearColor);
 
     glBindVertexArray(VAO);
-    // for (unsigned int i = 0; i < 10; i++) {
-    //   glm::mat4 model = glm::mat4(1.0f);
-    //   model = glm::translate(model, cubePositions[i]);
-    //   float angle = 20.0f * i;
-    //   model = glm::rotate(model, glm::radians(angle),
-    //                       glm::vec3(1.0f, 0.3f, 0.5f));
-    //   shader.setMat4("model", glm::value_ptr(model));
-    //   glDrawArrays(GL_TRIANGLES, 0, 36);
-    // }
     glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
-    // glDrawArrays(GL_TRIANGLES, 0, 36);
-    // glm::mat4 trans2 = glm::translate(trans, glm::vec3(-1.0f, 1.0f, 0.0f));
-    // glUniformMatrix4fv(transformLoc, 1, GL_FALSE, glm::value_ptr(trans2));
-    // glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+    // render occlusion mask
+
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
+    glViewport(0, 0, window_width, window_height);
+    glEnable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    occlusion_shader.use();
+    occlusion_shader.setMat4("model", glm::value_ptr(model));
+    occlusion_shader.setMat4("view", glm::value_ptr(view));
+    occlusion_shader.setMat4("projection", glm::value_ptr(projection));
+    occlusion_shader.setMat4("normalMatrix", glm::value_ptr(normalMatrix));
+    occlusion_shader.setVec3("cameraPos", camera.Position);
+    occlusion_shader.setVec4("clearColor", clearColor);
+
+    glBindVertexArray(VAO);
+    glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
+    
+    // render post-processing
+    glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+    glBindVertexArray(screen_vao);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, window_width, window_height);
+    glDisable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT);
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, tex2);
+    godray_shader.use();
+    godray_shader.setUnsignedInt("screenWidth", window_width);
+    godray_shader.setUnsignedInt("screenHeight", window_height);
+    godray_shader.setMat4("view", glm::value_ptr(view));
+    godray_shader.setMat4("projection", glm::value_ptr(projection));
+    godray_shader.setVec4("clearColor", clearColor);
+    godray_shader.setInt("prevTex", 0);
+    godray_shader.setInt("maskTex", 1);
+    // godray_shader.setVec3("lightPos")
+    glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    // done rendering
     glBindVertexArray(0);
 
     // poll events, swap buffers,
