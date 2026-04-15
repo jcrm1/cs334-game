@@ -9,6 +9,8 @@ uniform vec4 clearColor;
 uniform sampler2D prevTex;
 uniform sampler2D maskTex;
 
+// godrays from https://developer.nvidia.com/gpugems/gpugems3/part-ii-light-and-shadows/chapter-13-volumetric-light-scattering-post-process
+
 const int numSamples = 100;
 const float density = 1.0;
 const float weight = 0.01;
