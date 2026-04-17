@@ -101,9 +101,9 @@ int main() {
   // tell GLFW to capture our mouse
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-  Shader shader("resources/vertex2.glsl", "resources/fragment2.glsl");
+  Shader terrain_shader("resources/terrain_vertex.glsl", "resources/terrain_fragment.glsl");
   Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
-  Shader occlusion_shader("resources/vertex2.glsl", "resources/occlusion_fragment.glsl");
+  Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
 
   int x, y, numChannels;
   unsigned char *heightmap_data = stbi_load("resources/nashville.png", &x, &y, &numChannels, 1);
@@ -332,17 +332,17 @@ int main() {
     glViewport(0, 0, window_width, window_height);
     glEnable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    shader.use();
-    shader.setMat4("model", glm::value_ptr(model));
+    terrain_shader.use();
+    terrain_shader.setMat4("model", glm::value_ptr(model));
     glm::mat4 view = camera.GetViewMatrix();
-    shader.setMat4("view", glm::value_ptr(view));
-    shader.setMat4("projection", glm::value_ptr(projection));
-    shader.setMat4("normalMatrix", glm::value_ptr(normalMatrix));
-    shader.setVec3("cameraPos", camera.Position);
-    shader.setVec4("clearColor", clearColor);
-    shader.setFloat("fogStart", fogStart);
-    shader.setFloat("fogLength", fogLength);
-    shader.setVec3("lightPos", lightPos);
+    terrain_shader.setMat4("view", glm::value_ptr(view));
+    terrain_shader.setMat4("projection", glm::value_ptr(projection));
+    terrain_shader.setMat4("normalMatrix", glm::value_ptr(normalMatrix));
+    terrain_shader.setVec3("cameraPos", camera.Position);
+    terrain_shader.setVec4("clearColor", clearColor);
+    terrain_shader.setFloat("fogStart", fogStart);
+    terrain_shader.setFloat("fogLength", fogLength);
+    terrain_shader.setVec3("lightPos", lightPos);
 
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
