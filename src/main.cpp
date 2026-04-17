@@ -8,8 +8,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "FastNoiseLite.h"
 
 #include "Shader.hpp"
 #include "Camera.hpp"
@@ -21,7 +20,6 @@
 #define ERR_FILE (-3)
 #define ERR_GLSL (-4)
 #define ERR_ALLOCATE (-5)
-#define ERR_STBI (-6)
 
 #define WINDOW_WIDTH (800)
 #define WINDOW_HEIGHT (600)
@@ -114,20 +112,21 @@ int main(int argc, char* argv[]) {
   Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
 
-  int x, y, numChannels;
-  unsigned char *heightmap_data = stbi_load("resources/nashville.png", &x, &y, &numChannels, 1);
-  if (heightmap_data == NULL) {
-    printf("Error while loading image\n");
-    return ERR_STBI;
-  }
-  printf("Loaded file with %d channels, x: %d, y: %d\n", numChannels, x, y);
+  int x = 512, y = 512;
   float (*vertices)[2][3] = (float (*)[2][3])malloc((y * x) * sizeof(*vertices));
   if (vertices == NULL) {
     printf("Failed to allocate memory for vertices\n");
     return ERR_ALLOCATE;
   }
-  unsigned char heightmap_min = 0xFF;
-  unsigned char heightmap_max = 0;
+
+  FastNoiseLite noise;
+  noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  noise.SetFractalType(FastNoiseLite::FractalType_FBm);
+  noise.SetFractalOctaves(6);
+  noise.SetFractalLacunarity(2.0f);
+  noise.SetFractalGain(0.5f);
+  noise.SetFrequency(0.003f);
+
   // here's the plan:
   // 1. want collisions
   // 2. wrote neat algorithm for convex triangle mesh collisions with a rectangular prism
@@ -136,20 +135,23 @@ int main(int argc, char* argv[]) {
   // 5. use the model matrix to shrink it down
   // 6. give the camera a very slow speed
   // 7. everything works with no bugs whatsoever. yup
+  float heightmap_min = FLT_MAX;
+  float heightmap_max = -FLT_MAX;
   for (int vz = 0; vz < y; vz++) {
     for (int vx = 0; vx < x; vx++) {
       int base = (vz * x) + vx;
+      // GetNoise returns [-1, 1]; remap to [0, 16] to match the old uint8/16.0f range
+      float height = (noise.GetNoise((float)vx, (float)vz) + 1.0f) * 8.0f;
       vertices[base][0][0] = vx;
-      vertices[base][0][1] = heightmap_data[base] / 16.0f;
+      vertices[base][0][1] = height;
       vertices[base][0][2] = vz;
-      if (heightmap_data[base] > heightmap_max) heightmap_max = heightmap_data[base];
-      if (heightmap_data[base] < heightmap_min) heightmap_min = heightmap_data[base];
+      if (height > heightmap_max) heightmap_max = height;
+      if (height < heightmap_min) heightmap_min = height;
     }
   }
   camera.Position.x = (x / 2) * TERRAIN_SCALE;
   camera.Position.z = (y / 2) * TERRAIN_SCALE;
-  stbi_image_free(heightmap_data);
-  printf("Created vertices. min: %d max: %d\n", heightmap_min, heightmap_max);
+  printf("Generated terrain. min: %.2f max: %.2f\n", heightmap_min, heightmap_max);
   unsigned int (*indices)[3] = (unsigned int (*)[3])malloc(((y - 1) * (x - 1) * 2) * sizeof(*indices));
   if (indices == NULL) {
     printf("Failed to allocate memory for indices\n");
