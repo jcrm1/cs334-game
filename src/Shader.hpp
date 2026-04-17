@@ -42,7 +42,7 @@ public:
     glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
     if (!success) {
       glGetShaderInfoLog(vertex, 512, NULL, infoLog);
-      fprintf(stderr, "Shader.hpp: error while compiling vertex shader\n%s\n", infoLog);
+      fprintf(stderr, "Shader.hpp: error while compiling vertex shader %s\n%s\n", vertexFilePath, infoLog);
     };
 
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
@@ -51,7 +51,7 @@ public:
     glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
     if (!success) {
       glGetShaderInfoLog(fragment, 512, NULL, infoLog);
-      fprintf(stderr, "Shader.hpp: error while compiling fragment shader\n%s\n", infoLog);
+      fprintf(stderr, "Shader.hpp: error while compiling fragment shader %s\n%s\n", fragmentFilePath, infoLog);
     };
 
     id = glCreateProgram();
@@ -77,11 +77,20 @@ public:
   void setInt(const std::string &name, int value) const {
     glUniform1i(glGetUniformLocation(id, name.c_str()), value);
   }
+  void setUnsignedInt(const std::string &name, unsigned int value) const {
+    glUniform1ui(glGetUniformLocation(id, name.c_str()), value);
+  }
   void setFloat(const std::string &name, float value) const {
     glUniform1f(glGetUniformLocation(id, name.c_str()), value);
   }
   void setMat4(const std::string &name, float *value) const {
     glUniformMatrix4fv(glGetUniformLocation(id, name.c_str()), 1, GL_FALSE, value);
+  }
+  void setVec3(const std::string &name, glm::vec3 value) const {
+    glUniform3f(glGetUniformLocation(id, name.c_str()), value.x, value.y, value.z);
+  }
+  void setVec4(const std::string &name, glm::vec4 value) const {
+    glUniform4f(glGetUniformLocation(id, name.c_str()), value.x, value.y, value.z, value.w);
   }
 };
 
