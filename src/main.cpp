@@ -113,11 +113,29 @@ int main(int argc, char* argv[]) {
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
 
   int x = 512, y = 512;
+
+  //VERTEX ARRAY
   float (*vertices)[2][3] = (float (*)[2][3])malloc((y * x) * sizeof(*vertices));
   if (vertices == NULL) {
     printf("Failed to allocate memory for vertices\n");
     return ERR_ALLOCATE;
   }
+
+  FastNoiseLite biome;
+  biome.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  biome.SetFractalType(FastNoiseLite::FractalType_FBm);
+  biome.SetFractalOctaves(2);
+  biome.SetFractalLacunarity(2.0f);
+  biome.SetFractalGain(0.5f);
+  biome.SetFrequency(0.003f);
+
+  FastNoiseLite erosion;
+  erosion.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  erosion.SetFractalType(FastNoiseLite::FractalType_FBm);
+  erosion.SetFractalOctaves(6);
+  erosion.SetFractalLacunarity(2.4f);
+  erosion.SetFractalGain(0.25f);
+  erosion.SetFrequency(0.03f);
 
   FastNoiseLite noise;
   noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
@@ -141,7 +159,7 @@ int main(int argc, char* argv[]) {
     for (int vx = 0; vx < x; vx++) {
       int base = (vz * x) + vx;
       // GetNoise returns [-1, 1]; remap to [0, 16] to match the old uint8/16.0f range
-      float height = (noise.GetNoise((float)vx, (float)vz) + 1.0f) * 8.0f;
+      float height = (((noise.GetNoise((float)vx, (float)vz) - erosion.GetNoise((float)vx, (float)vz) * 0.1f)) + 1.0f) * 8.0f;
       vertices[base][0][0] = vx;
       vertices[base][0][1] = height;
       vertices[base][0][2] = vz;
