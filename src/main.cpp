@@ -369,7 +369,6 @@ int main(int argc, char* argv[]) {
     max_height += 0.5f;
     if (camera.Position.y > max_height && glfwGetKey(window, GLFW_KEY_SPACE) != GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
     if (camera.Position.y < max_height) camera.Position.y = max_height;
-    if ()
 
     // if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) camera.ModifySpeed(0.1f);
     // if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) camera.ModifySpeed(-0.1f);
