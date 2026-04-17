@@ -4,6 +4,7 @@
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include "Constants.hpp"
 
 // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
 enum Camera_Movement {
@@ -77,6 +78,7 @@ public:
       Position += WorldUp * velocity;
     if (direction == DOWN)
       Position -= WorldUp * velocity;
+    printf("Pos: %f %f %f Velocity: %f Pos2: %lf %lf %lf\n", Position.x, Position.y, Position.z, velocity, Position.x / TERRAIN_SCALE, Position.y / TERRAIN_SCALE, Position.z / TERRAIN_SCALE);
   }
 
   void ModifySpeed(float delta) {
