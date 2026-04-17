@@ -42,7 +42,7 @@ public:
     glGetShaderiv(vertex, GL_COMPILE_STATUS, &success);
     if (!success) {
       glGetShaderInfoLog(vertex, 512, NULL, infoLog);
-      fprintf(stderr, "Shader.hpp: error while compiling vertex shader\n%s\n", infoLog);
+      fprintf(stderr, "Shader.hpp: error while compiling vertex shader %s\n%s\n", vertexFilePath, infoLog);
     };
 
     fragment = glCreateShader(GL_FRAGMENT_SHADER);
@@ -51,7 +51,7 @@ public:
     glGetShaderiv(fragment, GL_COMPILE_STATUS, &success);
     if (!success) {
       glGetShaderInfoLog(fragment, 512, NULL, infoLog);
-      fprintf(stderr, "Shader.hpp: error while compiling fragment shader\n%s\n", infoLog);
+      fprintf(stderr, "Shader.hpp: error while compiling fragment shader %s\n%s\n", fragmentFilePath, infoLog);
     };
 
     id = glCreateProgram();
