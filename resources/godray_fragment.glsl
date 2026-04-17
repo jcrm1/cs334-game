@@ -44,7 +44,7 @@ void main() {
     vec2 deltaTexCoord = (texCoord - screenLightPos) * (density * (1.0 / numSamples));
     float illuminationDecay = 1.0;
     vec2 rayTexCoord = texCoord;
-    vec3 orig_mask = texture(maskTex, texCoord).xyz
+    vec3 orig_mask = texture(maskTex, texCoord).xyz;
     vec3 color = orig_mask;
     for (int i = 0; i < numSamples; i += 1) {
       rayTexCoord -= deltaTexCoord;
