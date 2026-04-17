@@ -7,7 +7,9 @@ project(GraphicsClassGame LANGUAGES C CXX)
 add_executable(Game)
 target_compile_features(Game PRIVATE cxx_std_23)
 
-set(CMAKE_BUILD_TYPE Debug)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Debug)
+endif()
 
 target_sources(Game PRIVATE
   src/main.cpp
