@@ -1,0 +1,6 @@
+#ifndef CONSTANTS_HPP
+#define CONSTANTS_HPP
+
+#define TERRAIN_SCALE (0.033068783068783074)
+
+#endif
