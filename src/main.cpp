@@ -259,6 +259,13 @@ int main() {
 
   // clear color
   glm::vec4 clearColor(0.878f, 0.918f, 0.969f, 1.0f);
+  
+  // fog
+  float fogStart = 50.0f;
+  float fogLength = 25.0f;
+
+  // sun position
+  glm::vec3 lightPos(200,100,0);
 
   unsigned int tex;
   glGenTextures(1, &tex);
@@ -333,6 +340,9 @@ int main() {
     shader.setMat4("normalMatrix", glm::value_ptr(normalMatrix));
     shader.setVec3("cameraPos", camera.Position);
     shader.setVec4("clearColor", clearColor);
+    shader.setFloat("fogStart", fogStart);
+    shader.setFloat("fogLength", fogLength);
+    shader.setVec3("lightPos", lightPos);
 
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
@@ -351,6 +361,8 @@ int main() {
     occlusion_shader.setMat4("normalMatrix", glm::value_ptr(normalMatrix));
     occlusion_shader.setVec3("cameraPos", camera.Position);
     occlusion_shader.setVec4("clearColor", clearColor);
+    occlusion_shader.setFloat("fogStart", fogStart);
+    occlusion_shader.setFloat("fogLength", fogLength);
 
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
@@ -369,12 +381,16 @@ int main() {
     godray_shader.use();
     godray_shader.setUnsignedInt("screenWidth", window_width);
     godray_shader.setUnsignedInt("screenHeight", window_height);
+    godray_shader.setMat4("model", glm::value_ptr(model));
     godray_shader.setMat4("view", glm::value_ptr(view));
     godray_shader.setMat4("projection", glm::value_ptr(projection));
     godray_shader.setVec4("clearColor", clearColor);
     godray_shader.setInt("prevTex", 0);
     godray_shader.setInt("maskTex", 1);
-    // godray_shader.setVec3("lightPos")
+    godray_shader.setVec3("lightPos", lightPos);
+    godray_shader.setFloat("fogStart", fogStart);
+    godray_shader.setFloat("fogLength", fogLength);
+    godray_shader.setVec3("cameraPos", camera.Position);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     // done rendering
