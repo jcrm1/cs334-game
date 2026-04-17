@@ -1,7 +1,7 @@
 #ifndef CONSTANTS_HPP
 #define CONSTANTS_HPP
 
-#define TERRAIN_SCALE_RECIPROCAL (30) // 1 over X
+#define TERRAIN_SCALE_RECIPROCAL (10) // 1 over X
 #define TERRAIN_SCALE (1.0 / TERRAIN_SCALE_RECIPROCAL)
 
 #endif

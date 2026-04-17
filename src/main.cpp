@@ -328,6 +328,7 @@ int main(int argc, char* argv[]) {
   glm::mat4 normalMatrix = glm::transpose(glm::inverse(model));
   unsigned long frameCount = 1;
   // float target_frame_time = 1.0f / target_fps;
+  bool grounded = false;
   while (!glfwWindowShouldClose(window)) {
     float currentFrame = static_cast<float>(glfwGetTime());
     deltaTime = currentFrame - lastFrame;
@@ -366,7 +367,9 @@ int main(int argc, char* argv[]) {
       if (pos_neg_height > max_height) max_height = pos_neg_height;
     }
     max_height += 0.5f;
+    if (camera.Position.y > max_height && glfwGetKey(window, GLFW_KEY_SPACE) != GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
     if (camera.Position.y < max_height) camera.Position.y = max_height;
+    if ()
 
     // if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) camera.ModifySpeed(0.1f);
     // if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) camera.ModifySpeed(-0.1f);
