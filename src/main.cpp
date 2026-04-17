@@ -26,6 +26,8 @@
 #define WINDOW_WIDTH (800)
 #define WINDOW_HEIGHT (600)
 
+#define OFFSET(x) (TERRAIN_SCALE_RECIPROCAL - ((x) % TERRAIN_SCALE_RECIPROCAL))
+
 inline uint32_t random4bytes() {
   return (uint32_t)rand();
 }
@@ -137,13 +139,15 @@ int main(int argc, char* argv[]) {
   for (int vz = 0; vz < y; vz++) {
     for (int vx = 0; vx < x; vx++) {
       int base = (vz * x) + vx;
-      vertices[base][0][0] = vx - (x / 2);
+      vertices[base][0][0] = vx;
       vertices[base][0][1] = heightmap_data[base] / 16.0f;
-      vertices[base][0][2] = vz - (y / 2);
+      vertices[base][0][2] = vz;
       if (heightmap_data[base] > heightmap_max) heightmap_max = heightmap_data[base];
       if (heightmap_data[base] < heightmap_min) heightmap_min = heightmap_data[base];
     }
   }
+  camera.Position.x = (x / 2) * TERRAIN_SCALE;
+  camera.Position.z = (y / 2) * TERRAIN_SCALE;
   stbi_image_free(heightmap_data);
   printf("Created vertices. min: %d max: %d\n", heightmap_min, heightmap_max);
   unsigned int (*indices)[3] = (unsigned int (*)[3])malloc(((y - 1) * (x - 1) * 2) * sizeof(*indices));
@@ -337,6 +341,33 @@ int main(int argc, char* argv[]) {
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.ProcessKeyboard(RIGHT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) camera.ProcessKeyboard(UP, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
+
+    // Process "collisions" but it's really just checking terrain heights
+    // glm::vec3 pos = camera.Position;
+    // glm::vec3 neg_neg = glm::floor(pos);
+    // glm::vec3 pos_pos = glm::ceil(pos);
+    int x_scaled_floor = glm::floor(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
+    int x_scaled_ceil = glm::ceil(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
+    int z_scaled_floor = glm::floor(camera.Position.z * TERRAIN_SCALE_RECIPROCAL);
+    int z_scaled_ceil = glm::ceil(camera.Position.z * TERRAIN_SCALE_RECIPROCAL);
+    int x_offset_floor = x_scaled_floor - OFFSET(x_scaled_floor);
+    int x_offset_ceil = x_scaled_floor + OFFSET(x_scaled_floor);
+    int z_offset_floor = z_scaled_floor - OFFSET(z_scaled_floor);
+    int z_offset_ceil = z_scaled_floor + OFFSET(z_scaled_floor);
+    float max_height = 0;
+    if (!((x_offset_floor < 0 || x_offset_ceil > x) || (z_offset_floor < 0 || z_offset_ceil > y))) {
+      float neg_neg_height = vertices[(z_offset_floor * x) + x_offset_floor][0][1];
+      float neg_pos_height = vertices[(z_offset_ceil * x) + x_offset_floor][0][1];
+      float pos_pos_height = vertices[(z_offset_ceil * x) + x_offset_ceil][0][1];
+      float pos_neg_height = vertices[(z_offset_floor * x) + x_offset_ceil][0][1];
+      if (neg_neg_height > max_height) max_height = neg_neg_height;
+      if (neg_pos_height > max_height) max_height = neg_pos_height;
+      if (pos_pos_height > max_height) max_height = pos_pos_height;
+      if (pos_neg_height > max_height) max_height = pos_neg_height;
+    }
+    max_height += 0.5f;
+    if (camera.Position.y < max_height) camera.Position.y = max_height;
+
     // if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) camera.ModifySpeed(0.1f);
     // if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) camera.ModifySpeed(-0.1f);
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.SetSpeed(10.0f);
