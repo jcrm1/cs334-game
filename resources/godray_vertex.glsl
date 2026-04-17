@@ -2,7 +2,6 @@
 layout (location = 0) in vec2 aPos;
 
 uniform vec3 lightPos = vec3(200,100,0);
-uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 uniform uint screenWidth;
@@ -24,5 +23,5 @@ void main()
     screenLightPos = ndc01;
     // screenLightPos = ndc01 * vec2(screenWidth, screenHeight);
   }
-  vPos = vec3(model * gl_Position);
+  vPos = gl_Position.xyz;
 }

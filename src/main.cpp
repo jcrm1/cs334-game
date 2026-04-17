@@ -74,8 +74,14 @@ void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
   camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
-
-int main() {
+// static int target_fps = 30;
+int main(int argc, char* argv[]) {
+  // if (argc == 2) {
+  //   int res = sscanf(argv[1], "%d", &target_fps);
+  //   if (res != 1) {
+  //     printf("Invalid fps\n");
+  //   }
+  // }
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -119,14 +125,20 @@ int main() {
   }
   unsigned char heightmap_min = 0xFF;
   unsigned char heightmap_max = 0;
-  float xf = x / 200.0f;
-  float yf = y / 200.0f;
+  // here's the plan:
+  // 1. want collisions
+  // 2. wrote neat algorithm for convex triangle mesh collisions with a rectangular prism
+  // 3. algorithm only works when vertices are on integers
+  // 4. world space will become 1 unit per heightmap pixel
+  // 5. use the model matrix to shrink it down
+  // 6. give the camera a very slow speed
+  // 7. everything works with no bugs whatsoever. yup
   for (int vz = 0; vz < y; vz++) {
     for (int vx = 0; vx < x; vx++) {
       int base = (vz * x) + vx;
-      vertices[base][0][0] = (vx / xf) - ((x / xf) / 2);
+      vertices[base][0][0] = vx - (x / 2);
       vertices[base][0][1] = heightmap_data[base] / 16.0f;
-      vertices[base][0][2] = vz / yf - ((y / yf) / 2);
+      vertices[base][0][2] = vz - (y / 2);
       if (heightmap_data[base] > heightmap_max) heightmap_max = heightmap_data[base];
       if (heightmap_data[base] < heightmap_min) heightmap_min = heightmap_data[base];
     }
@@ -252,20 +264,21 @@ int main() {
 
   glm::mat4 model = glm::mat4(1.0f);
   model = glm::rotate(model, glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+  model = glm::scale(model, glm::vec3(0.033068783068783074f, 1.0f, 0.033068783068783074f));
   glm::mat4 view = glm::mat4(1.0f);
   // note that we're translating the scene in the reverse direction of where we want to move
   view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-  glm::mat4 projection = glm::perspective(glm::radians(45.0f), ((float) window_width) / ((float) window_height), 0.1f, 500.0f);
+  glm::mat4 projection = glm::perspective(glm::radians(45.0f), ((float)window_width) / ((float)window_height), 0.1f, 500.0f);
 
   // clear color
   glm::vec4 clearColor(0.878f, 0.918f, 0.969f, 1.0f);
-  
+
   // fog
   float fogStart = 50.0f;
   float fogLength = 25.0f;
 
   // sun position
-  glm::vec3 lightPos(200,100,0);
+  glm::vec3 lightPos(200, 100, 0);
 
   unsigned int tex;
   glGenTextures(1, &tex);
@@ -306,12 +319,14 @@ int main() {
   glBindRenderbuffer(GL_RENDERBUFFER, rbo2);
   glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo2);
-  
+
   glm::mat4 normalMatrix = glm::transpose(glm::inverse(model));
   unsigned long frameCount = 1;
+  // float target_frame_time = 1.0f / target_fps;
   while (!glfwWindowShouldClose(window)) {
     float currentFrame = static_cast<float>(glfwGetTime());
     deltaTime = currentFrame - lastFrame;
+    // if (deltaTime < target_frame_time) usleep();
     lastFrame = currentFrame;
     // process input
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, true);
@@ -366,7 +381,7 @@ int main() {
 
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
-    
+
     // render post-processing
     glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
     glBindVertexArray(screen_vao);
@@ -381,7 +396,7 @@ int main() {
     godray_shader.use();
     godray_shader.setUnsignedInt("screenWidth", window_width);
     godray_shader.setUnsignedInt("screenHeight", window_height);
-    godray_shader.setMat4("model", glm::value_ptr(model));
+    // godray_shader.setMat4("model", glm::value_ptr(model));
     godray_shader.setMat4("view", glm::value_ptr(view));
     godray_shader.setMat4("projection", glm::value_ptr(projection));
     godray_shader.setVec4("clearColor", clearColor);
