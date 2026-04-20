@@ -13,8 +13,8 @@ void main() {
   float dist = distance(vPos, cameraPos);
   if (dist > fogStart) {
     float s = min((dist - fogStart) / fogLength, 1.0);
-    FragColor = vec4(s, s, s, 1.0);
+    FragColor = vec4(s, 0, gl_FragCoord.z, 1.0);
   } else {
-    FragColor = vec4(0.0, 0.0, 0.0, 0.0); // black
+    FragColor = vec4(0.0, 0.0, gl_FragCoord.z, 0.0); // black
   }
 }

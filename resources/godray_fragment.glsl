@@ -36,21 +36,18 @@ void main() {
   if (texture(maskTex, texCoord).x != 1 && screenLightPos.x >= 0) {
     // terrain
 
-    // THE PROBLEM:
-    // The vPos I get from vertex shader is not the coordinate
-    // of the terrain vertex like I think it is. Rather, it is
-    // the coordinate of a vertex of the SCREEN SPACE TRIANGLE. AUGHHHHH
-    // edit: maybe fixed? leaving note for future reference
     vec2 deltaTexCoord = (texCoord - screenLightPos) * (density * (1.0 / numSamples));
     float illuminationDecay = 1.0;
     vec2 rayTexCoord = texCoord;
-    vec3 orig_mask = texture(maskTex, texCoord).xyz;
+    float mx = texture(maskTex, texCoord).x;
+    vec3 orig_mask = vec3(mx, mx, mx);
     vec3 color = orig_mask;
     for (int i = 0; i < numSamples; i += 1) {
       rayTexCoord -= deltaTexCoord;
-      vec3 sample = texture(maskTex, rayTexCoord).xyz;
+      float mxr = texture(maskTex, rayTexCoord).x;
+      vec3 sample = vec3(mxr, mxr, mxr);
       sample *= illuminationDecay * weight;
-      color += sample;
+      if (texture(maskTex, rayTexCoord).z <= texture(prevTex, rayTexCoord).a) color += sample;
       illuminationDecay *= decay;
     }
     FragColor = vec4(mix(mix(sunPlusColor, (color * exposure), 0.2), clearColor.xyz, orig_mask.x), 1.0);
@@ -58,4 +55,7 @@ void main() {
     // not terrain
     FragColor = vec4(sunPlusColor, 1.0);
   }
+  // FragColor = vec4(texture(maskTex, texCoord).z, texture(maskTex, texCoord).z, texture(maskTex, texCoord).z, 1.0);
+  // 0 = close
+  // 1 = far
 }

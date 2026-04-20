@@ -34,7 +34,7 @@ void main() {
         // dist = 100 -> min(2, 1) -> 1
         outColor = mix(outColor, clearColor.xyz, min((dist - fogStart) / fogLength, 1.0));
     }
-    FragColor = vec4(outColor, 1.0);
+    FragColor = vec4(outColor, gl_FragCoord.z);
 
     // vec3 lightDir = normalize(lightPos - vPos);
     // vec3 normal = normalize(vNormal);
