@@ -344,9 +344,6 @@ int main(int argc, char* argv[]) {
     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
 
     // Process "collisions" but it's really just checking terrain heights
-    // glm::vec3 pos = camera.Position;
-    // glm::vec3 neg_neg = glm::floor(pos);
-    // glm::vec3 pos_pos = glm::ceil(pos);
     int x_scaled_floor = glm::floor(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
     int x_scaled_ceil = glm::ceil(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
     int z_scaled_floor = glm::floor(camera.Position.z * TERRAIN_SCALE_RECIPROCAL);
@@ -370,8 +367,6 @@ int main(int argc, char* argv[]) {
     if (camera.Position.y > max_height && glfwGetKey(window, GLFW_KEY_SPACE) != GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
     if (camera.Position.y < max_height) camera.Position.y = max_height;
 
-    // if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) camera.ModifySpeed(0.1f);
-    // if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) camera.ModifySpeed(-0.1f);
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.SetSpeed(10.0f);
     else camera.SetSpeed(2.5f);
 
@@ -386,8 +381,8 @@ int main(int argc, char* argv[]) {
     glm::mat4 view = camera.GetViewMatrix();
     terrain_shader.setMat4("view", glm::value_ptr(view));
     terrain_shader.setMat4("projection", glm::value_ptr(projection));
-    terrain_shader.setMat4("normalMatrix", glm::value_ptr(normalMatrix));
     terrain_shader.setVec3("cameraPos", camera.Position);
+    terrain_shader.setMat4("normalMatrix", glm::value_ptr(normalMatrix));
     terrain_shader.setVec4("clearColor", clearColor);
     terrain_shader.setFloat("fogStart", fogStart);
     terrain_shader.setFloat("fogLength", fogLength);
@@ -422,7 +417,7 @@ int main(int argc, char* argv[]) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, window_width, window_height);
     glDisable(GL_DEPTH_TEST);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, tex);
     glActiveTexture(GL_TEXTURE1);
