@@ -8,6 +8,7 @@ in vec3 vColor;
 uniform vec3 cameraPos;
 uniform vec4 clearColor;
 
+uniform bool enableFog;
 uniform float fogStart;
 uniform float fogLength;
 
@@ -20,19 +21,21 @@ void main() {
     } else {
         outColor = vColor;
     }
-    float dist = distance(vPos, cameraPos);
-    if (dist > fogStart + fogLength) {
-        outColor = clearColor.xyz;
-    } else if (dist > fogStart) {
-        // higher mix value = more clear color
-        // dist = 50 -> min(0, 1) -> 0
-        // dist = 60 -> min(0.4, 1) -> 0.4
-        // dist = 70 -> min(0.8, 1) -> 0.8
-        // dist = 75 -> min(1, 1) -> 1
-        // dist = 80 -> min(1.2, 1) -> 1
-        // dist = 85 -> min(1.4, 1) -> 1
-        // dist = 100 -> min(2, 1) -> 1
-        outColor = mix(outColor, clearColor.xyz, min((dist - fogStart) / fogLength, 1.0));
+    if (enableFog) {
+        float dist = distance(vPos, cameraPos);
+        if (dist > fogStart + fogLength) {
+            outColor = clearColor.xyz;
+        } else if (dist > fogStart) {
+            // higher mix value = more clear color
+            // dist = 50 -> min(0, 1) -> 0
+            // dist = 60 -> min(0.4, 1) -> 0.4
+            // dist = 70 -> min(0.8, 1) -> 0.8
+            // dist = 75 -> min(1, 1) -> 1
+            // dist = 80 -> min(1.2, 1) -> 1
+            // dist = 85 -> min(1.4, 1) -> 1
+            // dist = 100 -> min(2, 1) -> 1
+            outColor = mix(outColor, clearColor.xyz, min((dist - fogStart) / fogLength, 1.0));
+        }
     }
     FragColor = vec4(outColor, gl_FragCoord.z);
 

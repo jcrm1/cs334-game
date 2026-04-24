@@ -329,6 +329,8 @@ int main(int argc, char* argv[]) {
   unsigned long frameCount = 1;
   // float target_frame_time = 1.0f / target_fps;
   bool grounded = false;
+  bool fogKeyDown = false;
+  bool enableFog = true;
   while (!glfwWindowShouldClose(window)) {
     float currentFrame = static_cast<float>(glfwGetTime());
     deltaTime = currentFrame - lastFrame;
@@ -342,6 +344,12 @@ int main(int argc, char* argv[]) {
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.ProcessKeyboard(RIGHT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) camera.ProcessKeyboard(UP, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS && !fogKeyDown) {
+      enableFog = !enableFog;
+      fogKeyDown = true;
+    } else if (glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
+      fogKeyDown = false;
+    }
 
     // Process "collisions" but it's really just checking terrain heights
     int x_scaled_floor = glm::floor(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
@@ -387,6 +395,7 @@ int main(int argc, char* argv[]) {
     terrain_shader.setFloat("fogStart", fogStart);
     terrain_shader.setFloat("fogLength", fogLength);
     terrain_shader.setVec3("lightPos", lightPos);
+    terrain_shader.setBool("enableFog", enableFog);
 
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
@@ -407,6 +416,7 @@ int main(int argc, char* argv[]) {
     occlusion_shader.setVec4("clearColor", clearColor);
     occlusion_shader.setFloat("fogStart", fogStart);
     occlusion_shader.setFloat("fogLength", fogLength);
+    occlusion_shader.setBool("enableFog", enableFog);
 
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
@@ -435,6 +445,7 @@ int main(int argc, char* argv[]) {
     godray_shader.setFloat("fogStart", fogStart);
     godray_shader.setFloat("fogLength", fogLength);
     godray_shader.setVec3("cameraPos", camera.Position);
+    godray_shader.setBool("enableFog", enableFog);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     // done rendering
