@@ -14,6 +14,14 @@
 #include "Camera.hpp"
 #include "Constants.hpp"
 
+#pragma pack(push, 1)
+struct Vertex {
+  float position[3];
+  float normal[3];
+};
+#pragma pack(pop)
+static_assert(sizeof(Vertex) == 6 * sizeof(float), "Vertex struct has unexpected padding");
+
 #define OK (0)
 #define ERR_GLFW (-1)
 #define ERR_GLAD (-2)
@@ -115,7 +123,7 @@ int main(int argc, char* argv[]) {
   int x = 512, y = 512;
 
   //VERTEX ARRAY
-  float (*vertices)[2][3] = (float (*)[2][3])malloc((y * x) * sizeof(*vertices));
+  Vertex *vertices = (Vertex *)malloc((y * x) * sizeof(Vertex));
   if (vertices == NULL) {
     printf("Failed to allocate memory for vertices\n");
     return ERR_ALLOCATE;
@@ -160,9 +168,9 @@ int main(int argc, char* argv[]) {
       int base = (vz * x) + vx;
       // GetNoise returns [-1, 1]; remap to [0, 16] to match the old uint8/16.0f range
       float height = (((noise.GetNoise((float)vx, (float)vz) - erosion.GetNoise((float)vx, (float)vz) * 0.1f)) + 1.0f) * 8.0f;
-      vertices[base][0][0] = vx;
-      vertices[base][0][1] = height;
-      vertices[base][0][2] = vz;
+      vertices[base].position[0] = vx;
+      vertices[base].position[1] = height;
+      vertices[base].position[2] = vz;
       if (height > heightmap_max) heightmap_max = height;
       if (height < heightmap_min) heightmap_min = height;
     }
@@ -188,23 +196,23 @@ int main(int argc, char* argv[]) {
       indices[base + 0][2] = tz;
       // triangle 1 face normal
       // there's probably some library function to do this stuff and it probably uses vector ops but i dunno how to do that
-      float *v0 = vertices[tx][0];
-      float *v1 = vertices[ty][0];
-      float *v2 = vertices[tz][0];
+      float *v0 = vertices[tx].position;
+      float *v1 = vertices[ty].position;
+      float *v2 = vertices[tz].position;
       glm::vec3 p0(v0[0], v0[1], v0[2]);
       glm::vec3 p1(v1[0], v1[1], v1[2]);
       glm::vec3 p2(v2[0], v2[1], v2[2]);
       // Use swapped cross order so a flat XZ plane points +Y.
       glm::vec3 faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      vertices[tx][1][0] += faceNormal.x;
-      vertices[tx][1][1] += faceNormal.y;
-      vertices[tx][1][2] += faceNormal.z;
-      vertices[ty][1][0] += faceNormal.x;
-      vertices[ty][1][1] += faceNormal.y;
-      vertices[ty][1][2] += faceNormal.z;
-      vertices[tz][1][0] += faceNormal.x;
-      vertices[tz][1][1] += faceNormal.y;
-      vertices[tz][1][2] += faceNormal.z;
+      vertices[tx].normal[0] += faceNormal.x;
+      vertices[tx].normal[1] += faceNormal.y;
+      vertices[tx].normal[2] += faceNormal.z;
+      vertices[ty].normal[0] += faceNormal.x;
+      vertices[ty].normal[1] += faceNormal.y;
+      vertices[ty].normal[2] += faceNormal.z;
+      vertices[tz].normal[0] += faceNormal.x;
+      vertices[tz].normal[1] += faceNormal.y;
+      vertices[tz].normal[2] += faceNormal.z;
 
       // triangle 2
       tx = (iz * x) + ix;
@@ -214,28 +222,28 @@ int main(int argc, char* argv[]) {
       indices[base + 1][1] = ty;
       indices[base + 1][2] = tz;
       // triangle 2 face normal
-      v0 = vertices[tx][0];
-      v1 = vertices[ty][0];
-      v2 = vertices[tz][0];
+      v0 = vertices[tx].position;
+      v1 = vertices[ty].position;
+      v2 = vertices[tz].position;
       p0 = glm::vec3(v0[0], v0[1], v0[2]);
       p1 = glm::vec3(v1[0], v1[1], v1[2]);
       p2 = glm::vec3(v2[0], v2[1], v2[2]);
       faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      vertices[tx][1][0] += faceNormal.x;
-      vertices[tx][1][1] += faceNormal.y;
-      vertices[tx][1][2] += faceNormal.z;
-      vertices[ty][1][0] += faceNormal.x;
-      vertices[ty][1][1] += faceNormal.y;
-      vertices[ty][1][2] += faceNormal.z;
-      vertices[tz][1][0] += faceNormal.x;
-      vertices[tz][1][1] += faceNormal.y;
-      vertices[tz][1][2] += faceNormal.z;
+      vertices[tx].normal[0] += faceNormal.x;
+      vertices[tx].normal[1] += faceNormal.y;
+      vertices[tx].normal[2] += faceNormal.z;
+      vertices[ty].normal[0] += faceNormal.x;
+      vertices[ty].normal[1] += faceNormal.y;
+      vertices[ty].normal[2] += faceNormal.z;
+      vertices[tz].normal[0] += faceNormal.x;
+      vertices[tz].normal[1] += faceNormal.y;
+      vertices[tz].normal[2] += faceNormal.z;
     }
   }
   printf("Created indices\n");
   // normalize normals
   for (int i = 0; i < y * x; i++) {
-    float *normal = vertices[i][1];
+    float *normal = vertices[i].normal;
     float len = sqrtf((normal[0] * normal[0]) + (normal[1] * normal[1]) + (normal[2] * normal[2]));
     normal[0] /= len;
     normal[1] /= len;
@@ -257,9 +265,9 @@ int main(int argc, char* argv[]) {
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, ((y - 1) * (x - 1) * 2) * sizeof(*indices), indices, GL_STATIC_DRAW);
   // 4. then set the vertex attributes pointers
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, position));
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
   glEnableVertexAttribArray(1);
 
   // screen effects setup begin
@@ -377,10 +385,10 @@ int main(int argc, char* argv[]) {
     int z_offset_ceil = z_scaled_floor + OFFSET(z_scaled_floor);
     float max_height = 0;
     if (!((x_offset_floor < 0 || x_offset_ceil > x) || (z_offset_floor < 0 || z_offset_ceil > y))) {
-      float neg_neg_height = vertices[(z_offset_floor * x) + x_offset_floor][0][1];
-      float neg_pos_height = vertices[(z_offset_ceil * x) + x_offset_floor][0][1];
-      float pos_pos_height = vertices[(z_offset_ceil * x) + x_offset_ceil][0][1];
-      float pos_neg_height = vertices[(z_offset_floor * x) + x_offset_ceil][0][1];
+      float neg_neg_height = vertices[(z_offset_floor * x) + x_offset_floor].position[1];
+      float neg_pos_height = vertices[(z_offset_ceil * x) + x_offset_floor].position[1];
+      float pos_pos_height = vertices[(z_offset_ceil * x) + x_offset_ceil].position[1];
+      float pos_neg_height = vertices[(z_offset_floor * x) + x_offset_ceil].position[1];
       if (neg_neg_height > max_height) max_height = neg_neg_height;
       if (neg_pos_height > max_height) max_height = neg_pos_height;
       if (pos_pos_height > max_height) max_height = pos_pos_height;
