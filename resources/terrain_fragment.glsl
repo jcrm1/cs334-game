@@ -11,6 +11,7 @@ uniform vec4 clearColor;
 uniform bool enableFog;
 uniform float fogStart;
 uniform float fogLength;
+uniform bool near;
 
 const vec3 lightPos = vec3(200.0, 200.0, 0.0);
 
@@ -21,8 +22,9 @@ void main() {
     } else {
         outColor = vColor;
     }
+    float dist = distance(vPos, cameraPos);
     if (enableFog) {
-        float dist = distance(vPos, cameraPos);
+        // fog mode
         if (dist > fogStart + fogLength) {
             outColor = clearColor.xyz;
         } else if (dist > fogStart) {
@@ -35,6 +37,16 @@ void main() {
             // dist = 85 -> min(1.4, 1) -> 1
             // dist = 100 -> min(2, 1) -> 1
             outColor = mix(outColor, clearColor.xyz, min((dist - fogStart) / fogLength, 1.0));
+        }
+    } else {
+        // LOD mode
+        // gives a bit of extra margin with (fogLength / 10.0) to remove the seam in the world
+        if (!near && dist > fogStart + fogLength - (fogLength / 10.0)) {
+            // do nothing! this will output to FragColor
+        } else if (near && dist <= fogStart + fogLength) {
+            // do nothing! this will output to FragColor
+        } else {
+            discard; // this will not output to FragColor
         }
     }
     FragColor = vec4(outColor, gl_FragCoord.z);
