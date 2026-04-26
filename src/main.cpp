@@ -121,7 +121,7 @@ int main(int argc, char* argv[]) {
     return ERR_STBI;
   }
   printf("Loaded file with %d channels, x: %d, y: %d\n", numChannels, x, y);
-  float (*vertices)[2][3] = (float (*)[2][3])malloc((y * x) * sizeof(*vertices));
+  float (*vertices)[2][3] = (float (*)[2][3])calloc((y * x), sizeof(*vertices));
   if (vertices == NULL) {
     printf("Failed to allocate memory for vertices\n");
     return ERR_ALLOCATE;
@@ -223,6 +223,118 @@ int main(int argc, char* argv[]) {
   }
   printf("Normalized normals\n");
 
+  /*
+   * LOD plan:
+   * 1. generate 1/2 density mesh. maybe use lowest height on exterior?
+   * 2. in pass 1, render pixels up to distance d1
+   * 3. in pass 2, render pixels past distance d1
+   */
+  // generate 1/2 density mesh
+  int lod_1_x = (int) glm::ceil(x / 2.0);
+  int lod_1_z = (int) glm::ceil(y / 2.0);
+  float (*lod_1_verts)[2][3] = (float (*)[2][3])calloc((lod_1_x * lod_1_z), sizeof(*lod_1_verts));
+  if (lod_1_verts == NULL) {
+    printf("Failed to allocate memory for lod_1_verts\n");
+    return ERR_ALLOCATE;
+  }
+  for (int vz = 0; vz < lod_1_z; vz++) {
+    for (int vx = 0; vx < lod_1_x; vx++) {
+      int ox0 = vx * 2;
+      int oz0 = vz * 2;
+      if (ox0 > x - 1) ox0 = x - 1;
+      if (oz0 > y - 1) oz0 = y - 1;
+      int ox1 = ox0 + 1;
+      int oz1 = oz0 + 1;
+      if (ox1 > x - 1) ox1 = x - 1;
+      if (oz1 > y - 1) oz1 = y - 1;
+
+      float *p00 = vertices[(oz0 * x) + ox0][0];
+      float *p10 = vertices[(oz0 * x) + ox1][0];
+      float *p01 = vertices[(oz1 * x) + ox0][0];
+      float *p11 = vertices[(oz1 * x) + ox1][0];
+
+      int out = (vz * lod_1_x) + vx;
+      lod_1_verts[out][0][0] = p00[0];
+      lod_1_verts[out][0][1] = (p00[1] + p10[1] + p01[1] + p11[1]) / 4.0f;
+      lod_1_verts[out][0][2] = p00[2];
+    }
+  }
+  unsigned int (*lod_1_indices)[3] = (unsigned int (*)[3])malloc(((lod_1_x - 1) * (lod_1_z - 1) * 2) * sizeof(*lod_1_indices));
+  if (lod_1_indices == NULL) {
+    printf("Failed to allocate memory for lod_1_indices\n");
+    return ERR_ALLOCATE;
+  }
+  for (int iz = 0; iz < lod_1_z - 1; iz++) {
+    for (int ix = 0; ix < lod_1_x - 1; ix++) {
+      int base = (iz * (lod_1_x - 1) + ix) * 2;
+      // triangle 1
+      int tx = (iz * lod_1_x) + ix;
+      int ty = ((iz + 1) * lod_1_x) + ix;
+      int tz = ((iz + 1) * lod_1_x) + ix + 1;
+      lod_1_indices[base + 0][0] = tx;
+      lod_1_indices[base + 0][1] = ty;
+      lod_1_indices[base + 0][2] = tz;
+      // triangle 1 face normal
+      // there's probably some library function to do this stuff and it probably uses vector ops but i dunno how to do that
+      float *v0 = lod_1_verts[tx][0];
+      float *v1 = lod_1_verts[ty][0];
+      float *v2 = lod_1_verts[tz][0];
+      glm::vec3 p0(v0[0], v0[1], v0[2]);
+      glm::vec3 p1(v1[0], v1[1], v1[2]);
+      glm::vec3 p2(v2[0], v2[1], v2[2]);
+      // Use swapped cross order so a flat XZ plane points +Y.
+      glm::vec3 faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
+      lod_1_verts[tx][1][0] += faceNormal.x;
+      lod_1_verts[tx][1][1] += faceNormal.y;
+      lod_1_verts[tx][1][2] += faceNormal.z;
+      lod_1_verts[ty][1][0] += faceNormal.x;
+      lod_1_verts[ty][1][1] += faceNormal.y;
+      lod_1_verts[ty][1][2] += faceNormal.z;
+      lod_1_verts[tz][1][0] += faceNormal.x;
+      lod_1_verts[tz][1][1] += faceNormal.y;
+      lod_1_verts[tz][1][2] += faceNormal.z;
+
+      // triangle 2
+      tx = (iz * lod_1_x) + ix;
+      ty = (iz * lod_1_x) + ix + 1;
+      tz = ((iz + 1) * lod_1_x) + ix + 1;
+      lod_1_indices[base + 1][0] = tx;
+      lod_1_indices[base + 1][1] = ty;
+      lod_1_indices[base + 1][2] = tz;
+      // triangle 2 face normal
+      v0 = lod_1_verts[tx][0];
+      v1 = lod_1_verts[ty][0];
+      v2 = lod_1_verts[tz][0];
+      p0 = glm::vec3(v0[0], v0[1], v0[2]);
+      p1 = glm::vec3(v1[0], v1[1], v1[2]);
+      p2 = glm::vec3(v2[0], v2[1], v2[2]);
+      faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
+      lod_1_verts[tx][1][0] += faceNormal.x;
+      lod_1_verts[tx][1][1] += faceNormal.y;
+      lod_1_verts[tx][1][2] += faceNormal.z;
+      lod_1_verts[ty][1][0] += faceNormal.x;
+      lod_1_verts[ty][1][1] += faceNormal.y;
+      lod_1_verts[ty][1][2] += faceNormal.z;
+      lod_1_verts[tz][1][0] += faceNormal.x;
+      lod_1_verts[tz][1][1] += faceNormal.y;
+      lod_1_verts[tz][1][2] += faceNormal.z;
+    }
+  }
+  // lod 1 normalize normals
+  for (int i = 0; i < lod_1_z * lod_1_x; i++) {
+    float *normal = lod_1_verts[i][1];
+    float len = sqrtf((normal[0] * normal[0]) + (normal[1] * normal[1]) + (normal[2] * normal[2]));
+    if (len > 0.00001f) {
+      normal[0] /= len;
+      normal[1] /= len;
+      normal[2] /= len;
+    } else {
+      normal[0] = 0.0f;
+      normal[1] = 1.0f;
+      normal[2] = 0.0f;
+    }
+  }
+
   unsigned int VAO, VBO, EBO;
   glGenBuffers(1, &VBO);
   glGenBuffers(1, &EBO);
@@ -236,6 +348,25 @@ int main(int argc, char* argv[]) {
   // 3. copy our index array in a element buffer for OpenGL to use
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, ((y - 1) * (x - 1) * 2) * sizeof(*indices), indices, GL_STATIC_DRAW);
+  // 4. then set the vertex attributes pointers
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
+  glEnableVertexAttribArray(1);
+
+  unsigned int VAO_LOD, VBO_LOD, EBO_LOD;
+  glGenBuffers(1, &VBO_LOD);
+  glGenBuffers(1, &EBO_LOD);
+  glGenVertexArrays(1, &VAO_LOD);
+
+  glBindVertexArray(VAO_LOD);
+
+  // 2. copy our vertices array in a vertex buffer for OpenGL to use
+  glBindBuffer(GL_ARRAY_BUFFER, VBO_LOD);
+  glBufferData(GL_ARRAY_BUFFER, (lod_1_z * lod_1_x) * sizeof(*lod_1_verts), lod_1_verts, GL_STATIC_DRAW);
+  // 3. copy our index array in a element buffer for OpenGL to use
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_LOD);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, ((lod_1_z - 1) * (lod_1_x - 1) * 2) * sizeof(*lod_1_indices), lod_1_indices, GL_STATIC_DRAW);
   // 4. then set the vertex attributes pointers
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
@@ -265,6 +396,8 @@ int main(int argc, char* argv[]) {
   glBindVertexArray(0);
   // end cleanup
 
+  glEnable(GL_BLEND);
+
   glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
   glm::mat4 model = glm::mat4(1.0f);
@@ -285,50 +418,72 @@ int main(int argc, char* argv[]) {
   // sun position
   glm::vec3 lightPos(200, 100, 0);
 
-  unsigned int tex;
-  glGenTextures(1, &tex);
-  glBindTexture(GL_TEXTURE_2D, tex);
+  unsigned int terrain_tex;
+  glGenTextures(1, &terrain_tex);
+  glBindTexture(GL_TEXTURE_2D, terrain_tex);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, window_width, window_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-  unsigned int fbo;
-  glGenFramebuffers(1, &fbo);
-  glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex, 0);
+  unsigned int terrain_fbo;
+  glGenFramebuffers(1, &terrain_fbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, terrain_fbo);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, terrain_tex, 0);
 
-  unsigned int rbo;
-  glGenRenderbuffers(1, &rbo);
-  glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+  unsigned int terrain_rbo;
+  glGenRenderbuffers(1, &terrain_rbo);
+  glBindRenderbuffer(GL_RENDERBUFFER, terrain_rbo);
   glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, terrain_rbo);
 
-  unsigned int tex2;
-  glGenTextures(1, &tex2);
-  glBindTexture(GL_TEXTURE_2D, tex2);
+  unsigned int mask_tex;
+  glGenTextures(1, &mask_tex);
+  glBindTexture(GL_TEXTURE_2D, mask_tex);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, window_width, window_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-  unsigned int fbo2;
-  glGenFramebuffers(1, &fbo2);
-  glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
-  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex2, 0);
+  unsigned int mask_fbo;
+  glGenFramebuffers(1, &mask_fbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, mask_fbo);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, mask_tex, 0);
 
-  unsigned int rbo2;
-  glGenRenderbuffers(1, &rbo2);
-  glBindRenderbuffer(GL_RENDERBUFFER, rbo2);
+  unsigned int mask_rbo;
+  glGenRenderbuffers(1, &mask_rbo);
+  glBindRenderbuffer(GL_RENDERBUFFER, mask_rbo);
   glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
-  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo2);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mask_rbo);
+
+  // unsigned int terrain_lod_tex;
+  // glGenTextures(1, &terrain_lod_tex);
+  // glBindTexture(GL_TEXTURE_2D, terrain_lod_tex);
+  // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, window_width, window_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  // unsigned int terrain_lod_fbo;
+  // glGenFramebuffers(1, &terrain_lod_fbo);
+  // glBindFramebuffer(GL_FRAMEBUFFER, terrain_lod_fbo);
+  // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, terrain_lod_tex, 0);
+
+  // unsigned int terrain_lod_rbo;
+  // glGenRenderbuffers(1, &terrain_lod_rbo);
+  // glBindRenderbuffer(GL_RENDERBUFFER, terrain_lod_rbo);
+  // glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
+  // glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, terrain_lod_rbo);
 
   glm::mat4 normalMatrix = glm::transpose(glm::inverse(model));
   unsigned long frameCount = 1;
   // float target_frame_time = 1.0f / target_fps;
   bool grounded = false;
+  bool fogKeyDown = false;
+  bool enableFog = true;
   while (!glfwWindowShouldClose(window)) {
     float currentFrame = static_cast<float>(glfwGetTime());
     deltaTime = currentFrame - lastFrame;
@@ -342,11 +497,14 @@ int main(int argc, char* argv[]) {
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.ProcessKeyboard(RIGHT, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) camera.ProcessKeyboard(UP, deltaTime);
     if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
+    if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS && !fogKeyDown) {
+      enableFog = !enableFog;
+      fogKeyDown = true;
+    } else if (glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
+      fogKeyDown = false;
+    }
 
     // Process "collisions" but it's really just checking terrain heights
-    // glm::vec3 pos = camera.Position;
-    // glm::vec3 neg_neg = glm::floor(pos);
-    // glm::vec3 pos_pos = glm::ceil(pos);
     int x_scaled_floor = glm::floor(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
     int x_scaled_ceil = glm::ceil(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
     int z_scaled_floor = glm::floor(camera.Position.z * TERRAIN_SCALE_RECIPROCAL);
@@ -370,14 +528,12 @@ int main(int argc, char* argv[]) {
     if (camera.Position.y > max_height && glfwGetKey(window, GLFW_KEY_SPACE) != GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
     if (camera.Position.y < max_height) camera.Position.y = max_height;
 
-    // if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) camera.ModifySpeed(0.1f);
-    // if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) camera.ModifySpeed(-0.1f);
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.SetSpeed(10.0f);
     else camera.SetSpeed(2.5f);
 
     // render scene
     glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+    glBindFramebuffer(GL_FRAMEBUFFER, terrain_fbo);
     glViewport(0, 0, window_width, window_height);
     glEnable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -386,20 +542,30 @@ int main(int argc, char* argv[]) {
     glm::mat4 view = camera.GetViewMatrix();
     terrain_shader.setMat4("view", glm::value_ptr(view));
     terrain_shader.setMat4("projection", glm::value_ptr(projection));
-    terrain_shader.setMat4("normalMatrix", glm::value_ptr(normalMatrix));
     terrain_shader.setVec3("cameraPos", camera.Position);
+    terrain_shader.setMat4("normalMatrix", glm::value_ptr(normalMatrix));
     terrain_shader.setVec4("clearColor", clearColor);
     terrain_shader.setFloat("fogStart", fogStart);
     terrain_shader.setFloat("fogLength", fogLength);
     terrain_shader.setVec3("lightPos", lightPos);
+    terrain_shader.setBool("enableFog", enableFog);
 
+    // render far
+    if (!enableFog) {
+      terrain_shader.setBool("near", false);
+      glBindVertexArray(VAO_LOD);
+      glDrawElements(GL_TRIANGLES, (lod_1_z - 1) * (lod_1_x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
+    }
+    
+    // render near
+    terrain_shader.setBool("near", true);
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
 
     // render occlusion mask
-
+    // always render occlusion mask with regular terrain
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-    glBindFramebuffer(GL_FRAMEBUFFER, fbo2);
+    glBindFramebuffer(GL_FRAMEBUFFER, mask_fbo);
     glViewport(0, 0, window_width, window_height);
     glEnable(GL_DEPTH_TEST);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -412,6 +578,7 @@ int main(int argc, char* argv[]) {
     occlusion_shader.setVec4("clearColor", clearColor);
     occlusion_shader.setFloat("fogStart", fogStart);
     occlusion_shader.setFloat("fogLength", fogLength);
+    occlusion_shader.setBool("enableFog", enableFog);
 
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
@@ -422,11 +589,11 @@ int main(int argc, char* argv[]) {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, window_width, window_height);
     glDisable(GL_DEPTH_TEST);
-    glClear(GL_COLOR_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, tex);
+    glBindTexture(GL_TEXTURE_2D, terrain_tex);
     glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, tex2);
+    glBindTexture(GL_TEXTURE_2D, mask_tex);
     godray_shader.use();
     godray_shader.setUnsignedInt("screenWidth", window_width);
     godray_shader.setUnsignedInt("screenHeight", window_height);
@@ -440,6 +607,7 @@ int main(int argc, char* argv[]) {
     godray_shader.setFloat("fogStart", fogStart);
     godray_shader.setFloat("fogLength", fogLength);
     godray_shader.setVec3("cameraPos", camera.Position);
+    godray_shader.setBool("enableFog", enableFog);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     // done rendering
