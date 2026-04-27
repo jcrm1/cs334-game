@@ -304,8 +304,8 @@ int main(int argc, char* argv[]) {
   }
   printf("Normalized normals\n");
 
-  int source = (y * x) / 2;
-  int amount = 2000;
+  int source = 378;
+  int amount = 901;
   int *waterBottom = (int *)malloc(amount * sizeof(int));
   if (waterBottom == NULL) {
     printf("Failed to allocate memory for waterBottom\n");
@@ -332,7 +332,7 @@ int main(int argc, char* argv[]) {
   printf("Allocated waterBottomVertices\n");
   for (int i = 0; i < amount; i++){
     int triIndex = waterBottom[i];
-    printf("W %d: %d\n", i, triIndex);
+    // printf("W %d: %d\n", i, triIndex);
     waterBottomIndices[i][0] = indices[triIndex][0];
     waterBottomIndices[i][1] = indices[triIndex][1];
     waterBottomIndices[i][2] = indices[triIndex][2];
