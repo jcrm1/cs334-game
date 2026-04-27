@@ -120,7 +120,8 @@ int main(int argc, char* argv[]) {
   Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
 
-  int x = 512, y = 512;
+  //int x = 512, y = 512;
+  int x = 1024, y = 1024;
 
   //VERTEX ARRAY
   Vertex *vertices = (Vertex *)malloc((y * x) * sizeof(Vertex));
@@ -129,6 +130,7 @@ int main(int argc, char* argv[]) {
     return ERR_ALLOCATE;
   }
 
+  // Biome selector — low frequency so biome regions are large and gradual
   FastNoiseLite biome;
   biome.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
   biome.SetFractalType(FastNoiseLite::FractalType_FBm);
@@ -137,21 +139,56 @@ int main(int argc, char* argv[]) {
   biome.SetFractalGain(0.5f);
   biome.SetFrequency(0.003f);
 
-  FastNoiseLite erosion;
-  erosion.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
-  erosion.SetFractalType(FastNoiseLite::FractalType_FBm);
-  erosion.SetFractalOctaves(6);
-  erosion.SetFractalLacunarity(2.4f);
-  erosion.SetFractalGain(0.25f);
-  erosion.SetFrequency(0.03f);
+  // Plains — very low frequency, few octaves, almost no relief
+  FastNoiseLite plains_noise;
+  plains_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  plains_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
+  plains_noise.SetFractalOctaves(3);
+  plains_noise.SetFractalLacunarity(2.0f);
+  plains_noise.SetFractalGain(0.5f);
+  plains_noise.SetFrequency(0.0001f);
 
-  FastNoiseLite noise;
-  noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
-  noise.SetFractalType(FastNoiseLite::FractalType_FBm);
-  noise.SetFractalOctaves(6);
-  noise.SetFractalLacunarity(2.0f);
-  noise.SetFractalGain(0.5f);
-  noise.SetFrequency(0.003f);
+  FastNoiseLite plains_erosion;
+  plains_erosion.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  plains_erosion.SetFractalType(FastNoiseLite::FractalType_FBm);
+  plains_erosion.SetFractalOctaves(3);
+  plains_erosion.SetFractalLacunarity(2.0f);
+  plains_erosion.SetFractalGain(0.4f);
+  plains_erosion.SetFrequency(0.008f);
+
+  // Forest — medium frequency, moderate octaves, rolling hills
+  FastNoiseLite forest_noise;
+  forest_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  forest_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
+  forest_noise.SetFractalOctaves(5);
+  forest_noise.SetFractalLacunarity(2.0f);
+  forest_noise.SetFractalGain(0.5f);
+  forest_noise.SetFrequency(0.001f);
+
+  FastNoiseLite forest_erosion;
+  forest_erosion.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  forest_erosion.SetFractalType(FastNoiseLite::FractalType_FBm);
+  forest_erosion.SetFractalOctaves(5);
+  forest_erosion.SetFractalLacunarity(2.2f);
+  forest_erosion.SetFractalGain(0.3f);
+  forest_erosion.SetFrequency(0.0002f);
+
+  // Mountains — higher frequency, many octaves, high lacunarity for jagged peaks
+  FastNoiseLite mountain_noise;
+  mountain_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  mountain_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
+  mountain_noise.SetFractalOctaves(8);
+  mountain_noise.SetFractalLacunarity(2.6f);
+  mountain_noise.SetFractalGain(0.5f);
+  mountain_noise.SetFrequency(0.0007f);
+
+  FastNoiseLite mountain_erosion;
+  mountain_erosion.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  mountain_erosion.SetFractalType(FastNoiseLite::FractalType_FBm);
+  mountain_erosion.SetFractalOctaves(6);
+  mountain_erosion.SetFractalLacunarity(2.4f);
+  mountain_erosion.SetFractalGain(0.25f);
+  mountain_erosion.SetFrequency(0.003f);
 
   // here's the plan:
   // 1. want collisions
@@ -166,8 +203,25 @@ int main(int argc, char* argv[]) {
   for (int vz = 0; vz < y; vz++) {
     for (int vx = 0; vx < x; vx++) {
       int base = (vz * x) + vx;
-      // GetNoise returns [-1, 1]; remap to [0, 16] to match the old uint8/16.0f range
-      float height = (((noise.GetNoise((float)vx, (float)vz) - erosion.GetNoise((float)vx, (float)vz) * 0.1f)) + 1.0f) * 8.0f;
+      float fvx = (float)vx, fvz = (float)vz;
+      float b = biome.GetNoise(fvx, fvz); // [-1, 1]: -1 = plains, 0 = forest, +1 = mountains
+
+      // Blend weights — smoothstep gives a gradual transition zone between biomes
+      float w_plains   = 1.0f - glm::smoothstep(-0.5f, -0.1f, b); // 1 when b <= -0.5, 0 when b >= -0.1
+      float w_mountain = glm::smoothstep( 0.1f,  0.5f, b);      // 0 when b <=  0.1, 1 when b >=  0.5
+      float w_forest   = 1.0f - w_plains - w_mountain;
+
+      float h_plains   = (plains_noise.GetNoise(fvx, fvz)   - plains_erosion.GetNoise(fvx, fvz)   * 0.15f + 1.0f) * 2.5f;
+      float h_forest   = (forest_noise.GetNoise(fvx, fvz)   - forest_erosion.GetNoise(fvx, fvz)   * 0.20f + 1.0f) * 4.5f;
+      float h_mountain = (mountain_noise.GetNoise(fvx, fvz) - mountain_erosion.GetNoise(fvx, fvz) * 0.35f + 1.0f) * 8.0f;
+
+      float height = w_plains * h_plains + w_forest * h_forest + w_mountain * h_mountain;
+
+      // Flatten terrain below sea level, but skip mountain zones so they keep full relief.
+      float t = 1.0f - glm::smoothstep(SEA_LEVEL - 3.0f, SEA_LEVEL, height);
+      t *= (1.0f - w_mountain);
+      height = glm::mix(height, SEA_LEVEL - 0.5f, t);
+
       vertices[base].position[0] = vx;
       vertices[base].position[1] = height;
       vertices[base].position[2] = vz;
@@ -419,6 +473,7 @@ int main(int argc, char* argv[]) {
     terrain_shader.setVec4("clearColor", clearColor);
     terrain_shader.setFloat("fogStart", fogStart);
     terrain_shader.setFloat("fogLength", fogLength);
+    terrain_shader.setFloat("seaLevel", SEA_LEVEL);
     terrain_shader.setVec3("lightPos", lightPos);
 
     glBindVertexArray(VAO);
