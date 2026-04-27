@@ -354,6 +354,7 @@ int main(int argc, char* argv[]) {
     printf("Failed to allocate memory for lod_1_verts\n");
     return ERR_ALLOCATE;
   }
+  printf("Allocated lod_1_verts\n");
   for (int vz = 0; vz < lod_1_z; vz++) {
     for (int vx = 0; vx < lod_1_x; vx++) {
       int ox0 = vx * 2;
@@ -451,6 +452,7 @@ int main(int argc, char* argv[]) {
       normal[2] = 0.0f;
     }
   }
+  printf("Generated LOD mesh\n");
 
   unsigned int VAO, VBO, EBO;
   glGenBuffers(1, &VBO);
@@ -474,24 +476,24 @@ int main(int argc, char* argv[]) {
 
   // water bottom mesh (non-functional)
 
-  // unsigned int VAO_WATER, VBO_WATER, EBO_WATER;
-  // glGenBuffers(1, &VBO_WATER);
-  // glGenBuffers(1, &EBO_WATER);
-  // glGenVertexArrays(1, &VAO_WATER);
+  unsigned int VAO_WATER, VBO_WATER, EBO_WATER;
+  glGenBuffers(1, &VBO_WATER);
+  glGenBuffers(1, &EBO_WATER);
+  glGenVertexArrays(1, &VAO_WATER);
 
-  // glBindVertexArray(VAO_WATER);
+  glBindVertexArray(VAO_WATER);
 
-  // // 2. copy our vertices array in a vertex buffer for OpenGL to use
-  // glBindBuffer(GL_ARRAY_BUFFER, VBO_WATER);
-  // glBufferData(GL_ARRAY_BUFFER, amount * 3 * sizeof(*waterBottomVertices), waterBottomVertices, GL_STATIC_DRAW);
-  // // 3. copy our index array in a element buffer for OpenGL to use
-  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_WATER);
-  // glBufferData(GL_ELEMENT_ARRAY_BUFFER, amount * 2 * sizeof(*waterBottomIndices), waterBottomIndices, GL_STATIC_DRAW);
-  // // 4. then set the vertex attributes pointers
-  // glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, position));
-  // glEnableVertexAttribArray(0);
-  // glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
-  // glEnableVertexAttribArray(1);
+  // 2. copy our vertices array in a vertex buffer for OpenGL to use
+  glBindBuffer(GL_ARRAY_BUFFER, VBO_WATER);
+  glBufferData(GL_ARRAY_BUFFER, amount * 3 * sizeof(*waterBottomVertices), waterBottomVertices, GL_STATIC_DRAW);
+  // 3. copy our index array in a element buffer for OpenGL to use
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_WATER);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, amount * 2 * sizeof(*waterBottomIndices), waterBottomIndices, GL_STATIC_DRAW);
+  // 4. then set the vertex attributes pointers
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, position));
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
+  glEnableVertexAttribArray(1);
 
   unsigned int VAO_LOD, VBO_LOD, EBO_LOD;
   glGenBuffers(1, &VBO_LOD);
