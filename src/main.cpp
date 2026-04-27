@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
   Shader terrain_shader("resources/terrain_vertex.glsl", "resources/terrain_fragment.glsl");
   Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
-  Shader water_shader("resources/water_vertex.glsl", "resources/terrain_fragment.glsl");
+  Shader water_shader("resources/water_vertex.glsl", "resources/water_fragment.glsl");
 
   //int x = 512, y = 512;
   int x = 1024, y = 1024;
@@ -304,8 +304,8 @@ int main(int argc, char* argv[]) {
   }
   printf("Normalized normals\n");
 
-  int source = 2142;
-  int amount = 91;
+  int source = (y * x) / 2;
+  int amount = 2000;
   int *waterBottom = (int *)malloc(amount * sizeof(int));
   if (waterBottom == NULL) {
     printf("Failed to allocate memory for waterBottom\n");
@@ -316,7 +316,7 @@ int main(int argc, char* argv[]) {
 
   //get triangle indices and vertices for water bottom mesh
 
-  unsigned int (*waterBottomIndices)[3] = (unsigned int (*)[3])malloc((amount * 2) * sizeof(*waterBottomIndices));
+  unsigned int (*waterBottomIndices)[3] = (unsigned int (*)[3])malloc((amount * 3) * sizeof(*waterBottomIndices));
   printf("sizeof waterBottomIndices: %d\n", int(sizeof(*waterBottomIndices)));
   if (waterBottomIndices == NULL) {
     printf("Failed to allocate memory for waterBottomIndices\n");
@@ -332,6 +332,7 @@ int main(int argc, char* argv[]) {
   printf("Allocated waterBottomVertices\n");
   for (int i = 0; i < amount; i++){
     int triIndex = waterBottom[i];
+    printf("W %d: %d\n", i, triIndex);
     waterBottomIndices[i][0] = indices[triIndex][0];
     waterBottomIndices[i][1] = indices[triIndex][1];
     waterBottomIndices[i][2] = indices[triIndex][2];
@@ -486,10 +487,10 @@ int main(int argc, char* argv[]) {
 
   // 2. copy our vertices array in a vertex buffer for OpenGL to use
   glBindBuffer(GL_ARRAY_BUFFER, VBO_WATER);
-  glBufferData(GL_ARRAY_BUFFER, amount * 3 * sizeof(*waterBottomVertices), waterBottomVertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, (y * x) * sizeof(*vertices), vertices, GL_STATIC_DRAW);
   // 3. copy our index array in a element buffer for OpenGL to use
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_WATER);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, amount * 2 * sizeof(*waterBottomIndices), waterBottomIndices, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, amount * 3 * sizeof(*waterBottomIndices), waterBottomIndices, GL_STATIC_DRAW);
   // 4. then set the vertex attributes pointers
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, position));
   glEnableVertexAttribArray(0);
@@ -693,30 +694,6 @@ int main(int argc, char* argv[]) {
     terrain_shader.setVec3("lightPos", lightPos);
     terrain_shader.setBool("enableFog", enableFog);
 
-    printf("Rendering terrain\n");
-    water_shader.use();
-    printf("This worked\n");
-    water_shader.setMat4("model", glm::value_ptr(model));
-    printf("Set water model matrix\n");
-    water_shader.setMat4("view", glm::value_ptr(view));
-    printf("Set water view matrix\n");
-    water_shader.setMat4("projection", glm::value_ptr(projection));
-    printf("Set water projection matrix\n");
-    water_shader.setVec3("cameraPos", camera.Position);
-    printf("Set water camera position\n");
-    water_shader.setVec4("clearColor", clearColor);
-    printf("Set water clear color\n");
-    water_shader.setFloat("fogStart", fogStart);
-    printf("Set water fog start\n");
-    water_shader.setFloat("fogLength", fogLength);
-    printf("Set water fog length\n");
-    water_shader.setFloat("seaLevel", SEA_LEVEL);
-    printf("Set water sea level\n");
-    water_shader.setVec3("lightPos", lightPos);
-    printf("Set water light position\n");
-    water_shader.setBool("enableFog", enableFog);
-    printf("Set water enable fog\n");
-
     // render far
     if (!enableFog) {
       terrain_shader.setBool("near", false);
@@ -728,6 +705,36 @@ int main(int argc, char* argv[]) {
     terrain_shader.setBool("near", true);
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
+
+    // printf("Rendering water\n");
+    water_shader.use();
+    // printf("This worked\n");
+    water_shader.setMat4("model", glm::value_ptr(model));
+    // printf("Set water model matrix\n");
+    water_shader.setMat4("view", glm::value_ptr(view));
+    // printf("Set water view matrix\n");
+    water_shader.setMat4("projection", glm::value_ptr(projection));
+    // printf("Set water projection matrix\n");
+    water_shader.setVec3("cameraPos", camera.Position);
+    // printf("Set water camera position\n");
+    water_shader.setVec4("clearColor", clearColor);
+    // printf("Set water clear color\n");
+    water_shader.setFloat("fogStart", fogStart);
+    // printf("Set water fog start\n");
+    water_shader.setFloat("fogLength", fogLength);
+    // printf("Set water fog length\n");
+    water_shader.setFloat("seaLevel", SEA_LEVEL);
+    // printf("Set water sea level\n");
+    water_shader.setVec3("lightPos", lightPos);
+    // printf("Set water light position\n");
+    water_shader.setBool("enableFog", enableFog);
+    // printf("Set water enable fog\n");
+
+    glDisable(GL_DEPTH_TEST);
+    water_shader.setBool("near", true);
+    glBindVertexArray(VAO_WATER);
+    glDrawElements(GL_TRIANGLES, amount * 3, GL_UNSIGNED_INT, 0);
+    glEnable(GL_DEPTH_TEST);
 
     // render occlusion mask
     // always render occlusion mask with regular terrain

@@ -1,7 +1,6 @@
 #version 330 core
 out vec4 FragColor;
 
-in vec3 vNormal;
 in vec3 vPos;
 in vec3 vColor;
 in float vHeight;
@@ -45,13 +44,7 @@ void main() {
     } else {
         // LOD mode
         // gives a bit of extra margin with (fogLength / 10.0) to remove the seam in the world
-        if (!near && dist > fogStart + fogLength - (fogLength / 10.0)) {
-            // do nothing! this will output to FragColor
-        } else if (near && dist <= fogStart + fogLength) {
-            // do nothing! this will output to FragColor
-        } else {
-            discard; // this will not output to FragColor
-        }
+        // do nothing
     }
     FragColor = vec4(outColor, gl_FragCoord.z);
 
