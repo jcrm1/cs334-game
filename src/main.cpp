@@ -207,9 +207,11 @@ int main(int argc, char* argv[]) {
       float fvx = (float)vx, fvz = (float)vz;
       float b = biome.GetNoise(fvx, fvz); // [-1, 1]: -1 = plains, 0 = forest, +1 = mountains
 
-      // Blend weights — smoothstep gives a gradual transition zone between biomes
-      float w_plains   = 1.0f - glm::smoothstep(-0.5f, -0.1f, b); // 1 when b <= -0.5, 0 when b >= -0.1
-      float w_mountain = glm::smoothstep( 0.1f,  0.5f, b);      // 0 when b <=  0.1, 1 when b >=  0.5
+      // Triangular basis weights — each biome peaks at a point and tapers linearly.
+      // b=-1 → plains, b=0 → forest, b=+1 → mountains. Always sums to 1.
+      float t = (b + 1.0f) * 0.5f; // remap [-1,1] to [0,1]
+      float w_plains   = glm::clamp(1.0f - t * 2.0f, 0.0f, 1.0f);
+      float w_mountain = glm::clamp(t * 2.0f - 1.0f, 0.0f, 1.0f);
       float w_forest   = 1.0f - w_plains - w_mountain;
 
       float h_plains   = (plains_noise.GetNoise(fvx, fvz)   - plains_erosion.GetNoise(fvx, fvz)   * 0.15f + 1.0f) * 2.5f;
@@ -219,7 +221,7 @@ int main(int argc, char* argv[]) {
       float height = w_plains * h_plains + w_forest * h_forest + w_mountain * h_mountain;
 
       // Flatten terrain below sea level, but skip mountain zones so they keep full relief.
-      float t = 1.0f - glm::smoothstep(SEA_LEVEL - 3.0f, SEA_LEVEL, height);
+      t = 1.0f - glm::smoothstep(SEA_LEVEL - 3.0f, SEA_LEVEL, height);
       t *= (1.0f - w_mountain);
       height = glm::mix(height, SEA_LEVEL - 0.5f, t);
 
