@@ -16,6 +16,7 @@ target_sources(Game PRIVATE
   src/Shader.hpp
   src/Camera.hpp
   src/Constants.hpp
+  src/Water.cpp
 )
 
 add_subdirectory(externals/glfw)

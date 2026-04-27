@@ -10,17 +10,13 @@
 
 #include "FastNoiseLite.h"
 
+#include "Vertex.hpp"
 #include "Shader.hpp"
 #include "Camera.hpp"
 #include "Constants.hpp"
+#include "Water.hpp"
 
-#pragma pack(push, 1)
-struct Vertex {
-  float position[3];
-  float normal[3];
-};
-#pragma pack(pop)
-static_assert(sizeof(Vertex) == 6 * sizeof(float), "Vertex struct has unexpected padding");
+
 
 #define OK (0)
 #define ERR_GLFW (-1)
@@ -306,6 +302,17 @@ int main(int argc, char* argv[]) {
     normal[2] /= len;
   }
   printf("Normalized normals\n");
+
+  int source = 2142;
+  int amount = 91;
+  int *waterBottom = (int *)malloc(amount * sizeof(int));
+  if (waterBottom == NULL) {
+    printf("Failed to allocate memory for waterBottom\n");
+    return ERR_ALLOCATE;
+  }
+  createBottomMesh(&waterBottom, source, amount, (vertices), indices, (y - 1) * (x - 1) * 2, x*y);
+  printf("Created water bottom mesh\n");
+
 
   /*
    * LOD plan:

@@ -3,20 +3,23 @@
 //return initial water bottom mesh
 
 #include <stdlib.h>
-#define TERRAIN_WIDTH 100
-#define MESHSIZE 10000
+#include <stdio.h>
+#include "Vertex.hpp"
+#include "Water.hpp"
+// #define TERRAIN_WIDTH 100
+// #define MESHSIZE 10000
 
-float landMesh[MESHSIZE][3]; //assumed global??????
-int indices[(TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1) * 2][3]; // ditto
-int place = 5*3; //index, tentatively here
-int amount = 91; //not power of two (maybe float in future), tentatively here
-int flow = 3; //vector containing rate, tentatively here
+// float landMesh[MESHSIZE][3]; //assumed global??????
+// int indices[(TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1) * 2][3]; // ditto
+// int place = 5*3; //index, tentatively here
+// int amount = 91; //not power of two (maybe float in future), tentatively here
+// int flow = 3; //vector containing rate, tentatively here
 
 //use triangle indices, not points, for ease and speed
 //if in 
 
 static int insertSort(int triangle, int** waterBottom, int amount, int ** validPoints,
-    int * pointCount, int stopIndex){
+    int * pointCount, int stopIndex, unsigned int (*indices)[3], Vertex (*landMesh)){
     //find lowest point in triangle
     //for each valid triangle in mesh
     //  if same triangle, break
@@ -28,92 +31,96 @@ static int insertSort(int triangle, int** waterBottom, int amount, int ** validP
     //  for each valid point in validPoints
     //    compare
 
-    int lowestPoint = indices[triangle][0];
-    if (landMesh[indices[triangle][1]][1] < landMesh[lowestPoint][1]){
-        lowestPoint = indices[triangle][1];
-    }
-    if (landMesh[indices[triangle][2]][1] < landMesh[lowestPoint][1]){
-        lowestPoint = indices[triangle][2];
-    }
+    // int lowestPoint = indices[triangle][0];
+    // if (landMesh[indices[triangle][1]].position[1] < landMesh[lowestPoint].position[1]){
+    //     lowestPoint = indices[triangle][1];
+    // }
+    // if (landMesh[indices[triangle][2]].position[1] < landMesh[lowestPoint].position[1]){
+    //     lowestPoint = indices[triangle][2];
+    // }
     int temp;
     int temp2;
-    int success = 0;
-    for (int j = 0; j < amount && j < stopIndex; j++){
-        if ((*waterBottom)[j] = triangle) return 0;
-        for (int i = 0; i < 2; i++){
-            if (landMesh[lowestPoint][1] < landMesh[indices[j][0]][1] && 
-                landMesh[lowestPoint][1] < landMesh[indices[j][1]][1] &&
-                landMesh[lowestPoint][1] < landMesh[indices[j][2]][1]){
-                temp = (*waterBottom)[j];
-                (*waterBottom)[j] = triangle;
-                success++;
-                while ((j++) < amount && (j) < stopIndex + 1){
-                    temp2 = ((*waterBottom)[j]);
-                    (*waterBottom)[j] = temp;
-                    temp = temp2;
-                }
-                break;
-            }
-            if (landMesh[lowestPoint][1] != landMesh[indices[j][0]][1] || 
-                landMesh[lowestPoint][1] != landMesh[indices[j][1]][1] ||
-                landMesh[lowestPoint][1] != landMesh[indices[j][2]][1]) continue;
-            if (indices[triangle][0] != lowestPoint && 
-                (landMesh[indices[triangle][0]][1] < landMesh[indices[triangle][1]][1] || 
-                landMesh[indices[triangle][0]][1] < landMesh[indices[triangle][2]][1])  ){
-                    lowestPoint = indices[triangle][0];
-            }
-            else if (indices[triangle][1] != lowestPoint && 
-                (landMesh[indices[triangle][1]][1] < landMesh[indices[triangle][0]][1] || 
-                landMesh[indices[triangle][1]][1] < landMesh[indices[triangle][2]][1])  ){
-                    lowestPoint = indices[triangle][1];
-            }
-            else{
-                    lowestPoint = indices[triangle][2];
-            }
-            if ((landMesh[lowestPoint][1] < landMesh[indices[j][0]][1]) + 
-                (landMesh[lowestPoint][1] < landMesh[indices[j][1]][1]) +
-                (landMesh[lowestPoint][1] < landMesh[indices[j][2]][1]) == 2){ 
-                temp = (*waterBottom)[j];
-                (*waterBottom)[j] = triangle;
-                success++;
-                while ((j++) < amount && (j) < stopIndex + 1){
-                    temp2 = ((*waterBottom)[j]);
-                    (*waterBottom)[j] = temp;
-                    temp = temp2;
-                } 
-                break;
-            }
-            lowestPoint = indices[triangle][0];
-            if (landMesh[indices[triangle][1]][1] > landMesh[lowestPoint][1]){
-                lowestPoint = indices[triangle][1];
-            }
-            if (landMesh[indices[triangle][2]][1] > landMesh[lowestPoint][1]){
-                lowestPoint = indices[triangle][2];
-            }
-            if (landMesh[lowestPoint][1] != landMesh[indices[j][0]][1] || 
-                landMesh[lowestPoint][1] != landMesh[indices[j][1]][1] ||
-                landMesh[lowestPoint][1] != landMesh[indices[j][2]][1]) continue;
-            if (landMesh[lowestPoint][1] < landMesh[indices[j][0]][1] || 
-                landMesh[lowestPoint][1] < landMesh[indices[j][1]][1] ||
-                landMesh[lowestPoint][1] < landMesh[indices[j][2]][1]){
-                temp = (*waterBottom)[j];
-                (*waterBottom)[j] = triangle;
-                success++;
-                while ((j++) < amount && (j) < stopIndex + 1){
-                    temp2 = ((*waterBottom)[j]);
-                    (*waterBottom)[j] = temp;
-                    temp = temp2;
-                }
-                break;
-            }
-        }
-    }
+    // int success = 0;
+    // for (int j = 0; j < amount && j < stopIndex; j++){
+    //     if ((*waterBottom)[j] == triangle) return 0;
+    //     for (int i = 0; i < 2; i++){
+    //         if (landMesh[lowestPoint].position[1] < (landMesh[indices[j][0]]).position[1] && 
+    //             landMesh[lowestPoint].position[1] < (landMesh[indices[j][1]]).position[1] &&
+    //             landMesh[lowestPoint].position[1] < (landMesh[indices[j][2]]).position[1]){
+    //             temp = (*waterBottom)[j];
+    //             (*waterBottom)[j] = triangle;
+    //             printf("Inserting triangle %d at index %d\n", triangle, j);
+    //             success++;
+    //             while ((j++) < amount && (j) < stopIndex + 1){
+    //                 temp2 = ((*waterBottom)[j]);
+    //                 (*waterBottom)[j] = temp;
+    //                 temp = temp2;
+    //             }
+    //             break;
+    //         }
+    //         if (landMesh[lowestPoint].position[1] != (landMesh[indices[j][0]]).position[1] || 
+    //             landMesh[lowestPoint].position[1] != landMesh[indices[j][1]].position[1] ||
+    //             landMesh[lowestPoint].position[1] != landMesh[indices[j][2]].position[1]) continue;
+    //         if (indices[triangle][0] != lowestPoint && 
+    //             (landMesh[indices[triangle][0]].position[1] < landMesh[indices[triangle][1]].position[1] || 
+    //             landMesh[indices[triangle][0]].position[1] < landMesh[indices[triangle][2]].position[1])  ){
+    //                 lowestPoint = indices[triangle][0];
+    //         }
+    //         else if (indices[triangle][1] != lowestPoint && 
+    //             (landMesh[indices[triangle][1]].position[1] < landMesh[indices[triangle][0]].position[1] || 
+    //             landMesh[indices[triangle][1]].position[1] < landMesh[indices[triangle][2]].position[1])  ){
+    //                 lowestPoint = indices[triangle][1];
+    //         }
+    //         else{
+    //                 lowestPoint = indices[triangle][2];
+    //         }
+    //         if ((landMesh[lowestPoint].position[1] < landMesh[indices[j][0]].position[1]) + 
+    //             (landMesh[lowestPoint].position[1] < landMesh[indices[j][1]].position[1]) +
+    //             (landMesh[lowestPoint].position[1] < landMesh[indices[j][2]].position[1]) == 2){ 
+    //             temp = (*waterBottom)[j];
+    //             (*waterBottom)[j] = triangle;
+    //             success++;
+    //             while ((j++) < amount && (j) < stopIndex + 1){
+    //                 temp2 = ((*waterBottom)[j]);
+    //                 (*waterBottom)[j] = temp;
+    //                 temp = temp2;
+    //             } 
+    //             break;
+    //         }
+    //         lowestPoint = indices[triangle][0];
+    //         if (landMesh[indices[triangle][1]].position[1] > landMesh[lowestPoint].position[1]){
+    //             lowestPoint = indices[triangle][1];
+    //         }
+    //         if (landMesh[indices[triangle][2]].position[1] > landMesh[lowestPoint].position[1]){
+    //             lowestPoint = indices[triangle][2];
+    //         }
+    //         if (landMesh[lowestPoint].position[1] != landMesh[indices[j][0]].position[1] || 
+    //             landMesh[lowestPoint].position[1] != landMesh[indices[j][1]].position[1] ||
+    //             landMesh[lowestPoint].position[1] != landMesh[indices[j][2]].position[1]) continue;
+    //         if (landMesh[lowestPoint].position[1] < landMesh[indices[j][0]].position[1] || 
+    //             landMesh[lowestPoint].position[1] < landMesh[indices[j][1]].position[1] ||
+    //             landMesh[lowestPoint].position[1] < landMesh[indices[j][2]].position[1]){
+    //             temp = (*waterBottom)[j];
+    //             (*waterBottom)[j] = triangle;
+    //             success++;
+    //             while ((j++) < amount && (j) < stopIndex + 1){
+    //                 temp2 = ((*waterBottom)[j]);
+    //                 (*waterBottom)[j] = temp;
+    //                 temp = temp2;
+    //             }
+    //             break;
+    //         }
+    //     }
+    // }
+    (*waterBottom)[stopIndex] = triangle;
+    printf("Adding triangle %d at index %d\n", triangle, stopIndex);
+    
     for (int i = 0; i < 3; i++){
         for (int j = 0; j  < *pointCount; j++){
             if (j >= amount){
                 break;
             }
-            if (j < *pointCount || landMesh[indices[triangle][i]][1] < landMesh[(*validPoints)[j]][1]){
+            if (j < *pointCount || landMesh[indices[triangle][i]].position[1] < landMesh[(*validPoints)[j]].position[1]){
                 temp = (*validPoints)[j];
                 (*validPoints)[j] = indices[triangle][i];
                 (*pointCount)++;
@@ -130,18 +137,22 @@ static int insertSort(int triangle, int** waterBottom, int amount, int ** validP
             }
         }
     }
-    return success;
+    return  1;
 }
 
-static void addTriangles(int ** mesh, int ** validPoints, int currentPoint, int * validCount, int * triCount, int amount){
+static void addTriangles(int ** mesh, int ** validPoints, int currentPoint, int * validCount, int * triCount, int amount, 
+    int indexQuantity, int pointQuantity, unsigned int (*indices)[3], Vertex (*landMesh)){
     //for each triangle
     //if point is in it
     //  insert sort the triangle
     //  change counters appropriately
-    for (int i = 0; i < (TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1) * 2; i++){
+    for (int i = 0; i < indexQuantity; i++){
         for (int j = 0; j < 3; j++){
-            if (indices[i][j] = currentPoint){
-                *triCount += insertSort(i, mesh, amount, validPoints, validCount, *triCount);
+            if (indices[i][j] == currentPoint){
+                printf("Adding triangle %d\n", i);
+                *triCount += insertSort(i, mesh, amount, validPoints, validCount, *triCount, indices, landMesh);
+                printf("Current triCount: %d\n", *triCount);
+                break;
             }
             //other cases here
         }
@@ -158,8 +169,9 @@ Flow: rate of water increase
 
 Returns address of an array of triangles
 */
-int ** createBottomMesh(int source, int amount, int flow){
-    int (*waterBottom) = (int*) malloc(amount * sizeof(int));
+void createBottomMesh(int **waterBottom, int source, int amount, Vertex * landMesh, unsigned int (*indices)[3],
+    int indexQuantity, int pointQuantity){
+    // int (*waterBottom) = (int*) malloc(amount * sizeof(int));
     int (*validPoints) = (int*) malloc(amount * sizeof(int));
     int (*invalidPoints) = (int *) malloc(amount * sizeof(int));
     int invalidCount = 0;
@@ -174,16 +186,23 @@ int ** createBottomMesh(int source, int amount, int flow){
         //Add surrounding triangles and indices to arrays (3)
         //increment validCount, triCount, invalidCount
         //add current point to invalidPoints
+        printf("triCount: %d\n", triCount);
+
         int currentPoint = validPoints[0];
+        printf("Current point: %d\n", currentPoint);
         for (int i = 0; i < invalidCount; i++){
             if (currentPoint == invalidPoints[i]){
                 currentPoint = validPoints[i+1];
+                printf("Point is invalid, moving to next point: %d\n", currentPoint);
             }
         }
-        addTriangles(&waterBottom, &validPoints, currentPoint, &validCount, &triCount, amount);
+        addTriangles(waterBottom, &validPoints, currentPoint, &validCount, &triCount, 
+            amount, indexQuantity, pointQuantity, indices, landMesh);
         //first find smallest point from triangle?
+        invalidPoints[invalidCount] = currentPoint;
+        invalidCount++;
     }
-    return &waterBottom;
+    // return waterBottom;
 }
 
 //pre-calculate path until rest or end of map 
