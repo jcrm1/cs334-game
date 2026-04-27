@@ -6,11 +6,11 @@
 #define TERRAIN_WIDTH 100
 #define MESHSIZE 10000
 
-float landMesh[MESHSIZE][3]; //assumed global??????
-int indices[(TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1) * 2][3]; // ditto
-int place = 5*3; //index, tentatively here
-int amount = 91; //not power of two (maybe float in future), tentatively here
-int flow = 3; //vector containing rate, tentatively here
+// float landMesh[MESHSIZE][3]; //assumed global??????
+// int indices[(TERRAIN_WIDTH - 1) * (TERRAIN_WIDTH - 1) * 2][3]; // ditto
+// int place = 5*3; //index, tentatively here
+// int amount = 91; //not power of two (maybe float in future), tentatively here
+// int flow = 3; //vector containing rate, tentatively here
 
 //use triangle indices, not points, for ease and speed
 //if in 
@@ -181,7 +181,9 @@ int ** createBottomMesh(int source, int amount, int flow){
             }
         }
         addTriangles(&waterBottom, &validPoints, currentPoint, &validCount, &triCount, amount);
-        //first find smallest point from triangle?
+        //first find smallest point from triangle
+        invalidPoints[invalidCount] = currentPoint;
+        invalidCount++;
     }
     return &waterBottom;
 }
