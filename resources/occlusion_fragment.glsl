@@ -2,7 +2,10 @@
 out vec4 FragColor;
 
 in vec3 vPos;
-in vec3 vColor;
+in vec3 vNormal;
+in vec3 vModelNormal;
+in float vHeight;
+in float vBiome;
 
 uniform vec3 cameraPos;
 uniform vec4 clearColor;
