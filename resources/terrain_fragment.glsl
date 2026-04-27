@@ -17,6 +17,10 @@ uniform float seaLevel;
 uniform float terrainScale;
 uniform bool near;
 
+uniform sampler2D grassTex;
+uniform sampler2D rockTex;
+uniform sampler2D snowTex;
+
 void main() {
     vec3 outColor;
 
@@ -24,21 +28,20 @@ void main() {
         vec3 normal = normalize(vModelNormal);
         float steepness = 1.0 - abs(dot(normal, vec3(0.0, 1.0, 0.0)));
 
-        // Per-biome colors: flat vs steep
-        vec3 plains_flat  = vec3(0.45, 0.65, 0.25); // grass green
-        vec3 plains_steep = vec3(0.55, 0.45, 0.30); // dirt brown
+        // World-space UVs for texture tiling
+        vec2 uv = vPos.xz * 2.0;
 
-        vec3 forest_flat  = vec3(0.20, 0.45, 0.15); // dark green
-        vec3 forest_steep = vec3(0.40, 0.35, 0.25); // muddy brown
-
-        vec3 mountain_flat  = vec3(0.90, 0.92, 0.95); // snow white
-        vec3 mountain_steep = vec3(0.50, 0.48, 0.45); // rock grey
+        // Sample textures
+        vec3 grassColor = texture(grassTex, uv).rgb;
+        vec3 rockColor  = texture(rockTex, uv).rgb;
+        vec3 snowColor  = texture(snowTex, uv).rgb;
 
         float steep_t = smoothstep(0.004, 0.015, steepness);
 
-        vec3 plains_color   = mix(plains_flat, plains_steep, steep_t);
-        vec3 forest_color   = mix(forest_flat, forest_steep, steep_t);
-        vec3 mountain_color = mix(mountain_flat, mountain_steep, steep_t);
+        // Each biome blends between grass/snow (flat) and rock (steep)
+        vec3 plains_color   = mix(grassColor, rockColor, steep_t);
+        vec3 forest_color   = mix(grassColor * 0.7, rockColor, steep_t); // darker grass for forest
+        vec3 mountain_color = mix(rockColor, rockColor, steep_t);
 
         // Triangular basis weights from biome value (same logic as CPU side)
         float w_plains   = clamp(1.0 - vBiome * 2.0, 0.0, 1.0);
@@ -50,7 +53,7 @@ void main() {
         // Snow replaces grass in mountain biome — sharp cutoff based on biome weight
         float snow_t = smoothstep(0.2, 0.4, w_mountain) * (1.0 - steep_t);
         if (snow_t > 0.5) {
-            outColor = vec3(0.95, 0.96, 0.98);
+            outColor = snowColor;
         }
     } // end biome coloring
 

@@ -10,6 +10,9 @@
 
 #include "FastNoiseLite.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include "Shader.hpp"
 #include "Camera.hpp"
 #include "Constants.hpp"
@@ -120,6 +123,38 @@ int main(int argc, char* argv[]) {
   Shader terrain_shader("resources/terrain_vertex.glsl", "resources/terrain_fragment.glsl");
   Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
+
+  // Load terrain textures
+  auto loadTexture = [](const char *path) -> unsigned int {
+    unsigned int tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    int w, h, channels;
+    stbi_set_flip_vertically_on_load(false);
+    unsigned char *data = stbi_load(path, &w, &h, &channels, 3);
+    if (data) {
+      GLenum fmt = GL_RGB;
+      glTexImage2D(GL_TEXTURE_2D, 0, fmt, w, h, 0, fmt, GL_UNSIGNED_BYTE, data);
+      glGenerateMipmap(GL_TEXTURE_2D);
+      printf("Loaded texture: %s (%dx%d, %d channels)\n", path, w, h, channels);
+    } else {
+      printf("Failed to load texture: %s\n", path);
+    }
+    stbi_image_free(data);
+    return tex;
+  };
+  unsigned int grassTex = loadTexture("resources/Grass.png");
+  unsigned int rockTex  = loadTexture("resources/Stone.jpg");
+  unsigned int snowTex  = loadTexture("resources/Snow2.jpg");
+
+  terrain_shader.use();
+  terrain_shader.setInt("grassTex", 0);
+  terrain_shader.setInt("rockTex", 1);
+  terrain_shader.setInt("snowTex", 2);
 
   //int x = 512, y = 512;
   int x = 1024, y = 1024;
@@ -291,19 +326,19 @@ int main(int argc, char* argv[]) {
 
       // triangle 2
       tx = (iz * x) + ix;
-      ty = ((iz + 1) * x) + ix + 1;
-      tz = (iz * x) + ix + 1;
+      ty = (iz * x) + ix + 1;
+      tz = ((iz + 1) * x) + ix + 1;
       indices[base + 1][0] = tx;
       indices[base + 1][1] = ty;
       indices[base + 1][2] = tz;
-      // triangle 2 face normal
+      // triangle 2 face normal (negated to match triangle 1 direction)
       v0 = vertices[tx].position;
       v1 = vertices[ty].position;
       v2 = vertices[tz].position;
       p0 = glm::vec3(v0[0], v0[1], v0[2]);
       p1 = glm::vec3(v1[0], v1[1], v1[2]);
       p2 = glm::vec3(v2[0], v2[1], v2[2]);
-      faceNormal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
+      faceNormal = -glm::normalize(glm::cross(p1 - p0, p2 - p0));
       vertices[tx].normal[0] += faceNormal.x;
       vertices[tx].normal[1] += faceNormal.y;
       vertices[tx].normal[2] += faceNormal.z;
@@ -403,19 +438,19 @@ int main(int argc, char* argv[]) {
 
       // triangle 2
       tx = (iz * lod_1_x) + ix;
-      ty = ((iz + 1) * lod_1_x) + ix + 1;
-      tz = (iz * lod_1_x) + ix + 1;
+      ty = (iz * lod_1_x) + ix + 1;
+      tz = ((iz + 1) * lod_1_x) + ix + 1;
       lod_1_indices[base + 1][0] = tx;
       lod_1_indices[base + 1][1] = ty;
       lod_1_indices[base + 1][2] = tz;
-      // triangle 2 face normal
+      // triangle 2 face normal (negated to match triangle 1 direction)
       v0 = lod_1_verts[tx].position;
       v1 = lod_1_verts[ty].position;
       v2 = lod_1_verts[tz].position;
       p0 = glm::vec3(v0[0], v0[1], v0[2]);
       p1 = glm::vec3(v1[0], v1[1], v1[2]);
       p2 = glm::vec3(v2[0], v2[1], v2[2]);
-      faceNormal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
+      faceNormal = -glm::normalize(glm::cross(p1 - p0, p2 - p0));
       lod_1_verts[tx].normal[0] += faceNormal.x;
       lod_1_verts[tx].normal[1] += faceNormal.y;
       lod_1_verts[tx].normal[2] += faceNormal.z;
@@ -662,6 +697,13 @@ int main(int argc, char* argv[]) {
     terrain_shader.setFloat("terrainScale", TERRAIN_SCALE);
     terrain_shader.setVec3("lightPos", lightPos);
     terrain_shader.setBool("enableFog", enableFog);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, grassTex);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, rockTex);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, snowTex);
 
     // render far
     if (!enableFog) {
