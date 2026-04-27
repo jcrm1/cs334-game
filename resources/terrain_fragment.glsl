@@ -21,7 +21,8 @@ void main() {
     vec3 outColor = vec3(1.0,0.0,0.0);
     if (vHeight < seaLevel) {
         float depth = (seaLevel - vHeight) / seaLevel;
-        outColor = vec3(0.0, 0.3 - depth * 0.2, clamp(0.8 - depth * 0.3, 0.0, 1.0));
+        // outColor = vec3(0.0, 0.3 - depth * 0.2, clamp(0.8 - depth * 0.3, 0.0, 1.0));
+        outColor = vColor;
     } else {
         outColor = vColor;
     }

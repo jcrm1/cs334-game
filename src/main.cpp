@@ -115,6 +115,7 @@ int main(int argc, char* argv[]) {
   Shader terrain_shader("resources/terrain_vertex.glsl", "resources/terrain_fragment.glsl");
   Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
+  Shader water_shader("resources/water_vertex.glsl", "resources/water_fragment.glsl");
 
   //int x = 512, y = 512;
   int x = 1024, y = 1024;
