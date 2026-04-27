@@ -121,8 +121,7 @@ int main(int argc, char* argv[]) {
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
 
   //int x = 512, y = 512;
-  // int x = 1024, y = 1024;
-  int x = 4096, y = 4096;
+  int x = 1024, y = 1024;
 
   //VERTEX ARRAY
   Vertex *vertices = (Vertex *)calloc((y * x), sizeof(Vertex));
