@@ -115,7 +115,7 @@ int main(int argc, char* argv[]) {
   Shader terrain_shader("resources/terrain_vertex.glsl", "resources/terrain_fragment.glsl");
   Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
-  Shader water_shader("resources/water_vertex.glsl", "resources/water_fragment.glsl");
+  Shader water_shader("resources/water_vertex.glsl", "resources/terrain_fragment.glsl");
 
   //int x = 512, y = 512;
   int x = 1024, y = 1024;
@@ -692,6 +692,30 @@ int main(int argc, char* argv[]) {
     terrain_shader.setFloat("seaLevel", SEA_LEVEL);
     terrain_shader.setVec3("lightPos", lightPos);
     terrain_shader.setBool("enableFog", enableFog);
+
+    printf("Rendering terrain\n");
+    water_shader.use();
+    printf("This worked\n");
+    water_shader.setMat4("model", glm::value_ptr(model));
+    printf("Set water model matrix\n");
+    water_shader.setMat4("view", glm::value_ptr(view));
+    printf("Set water view matrix\n");
+    water_shader.setMat4("projection", glm::value_ptr(projection));
+    printf("Set water projection matrix\n");
+    water_shader.setVec3("cameraPos", camera.Position);
+    printf("Set water camera position\n");
+    water_shader.setVec4("clearColor", clearColor);
+    printf("Set water clear color\n");
+    water_shader.setFloat("fogStart", fogStart);
+    printf("Set water fog start\n");
+    water_shader.setFloat("fogLength", fogLength);
+    printf("Set water fog length\n");
+    water_shader.setFloat("seaLevel", SEA_LEVEL);
+    printf("Set water sea level\n");
+    water_shader.setVec3("lightPos", lightPos);
+    printf("Set water light position\n");
+    water_shader.setBool("enableFog", enableFog);
+    printf("Set water enable fog\n");
 
     // render far
     if (!enableFog) {
