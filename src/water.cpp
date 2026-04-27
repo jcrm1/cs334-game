@@ -112,6 +112,10 @@ static int insertSort(int triangle, int** waterBottom, int amount, int ** validP
     //         }
     //     }
     // }
+
+    for (int j = 0; j < amount && j < stopIndex; j++){
+        if ((*waterBottom)[j] == triangle) return 0;
+    }
     (*waterBottom)[stopIndex] = triangle;
     printf("Adding triangle %d at index %d\n", triangle, stopIndex);
     
