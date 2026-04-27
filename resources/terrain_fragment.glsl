@@ -34,7 +34,7 @@ void main() {
         vec3 mountain_flat  = vec3(0.90, 0.92, 0.95); // snow white
         vec3 mountain_steep = vec3(0.50, 0.48, 0.45); // rock grey
 
-        float steep_t = smoothstep(0.03, 0.08, steepness);
+        float steep_t = smoothstep(0.004, 0.015, steepness);
 
         vec3 plains_color   = mix(plains_flat, plains_steep, steep_t);
         vec3 forest_color   = mix(forest_flat, forest_steep, steep_t);
@@ -46,6 +46,12 @@ void main() {
         float w_forest   = 1.0 - w_plains - w_mountain;
 
         outColor = w_plains * plains_color + w_forest * forest_color + w_mountain * mountain_color;
+
+        // Snow replaces grass in mountain biome — sharp cutoff based on biome weight
+        float snow_t = smoothstep(0.2, 0.4, w_mountain) * (1.0 - steep_t);
+        if (snow_t > 0.5) {
+            outColor = vec3(0.95, 0.96, 0.98);
+        }
     } // end biome coloring
 
     float dist = distance(vPos, cameraPos);

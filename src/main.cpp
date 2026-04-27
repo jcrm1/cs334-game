@@ -121,8 +121,8 @@ int main(int argc, char* argv[]) {
   Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
 
-  int x = 512, y = 512;
-  //int x = 1024, y = 1024;
+  //int x = 512, y = 512;
+  int x = 1024, y = 1024;
 
   //VERTEX ARRAY
   Vertex *vertices = (Vertex *)calloc((y * x), sizeof(Vertex));
@@ -131,14 +131,29 @@ int main(int argc, char* argv[]) {
     return ERR_ALLOCATE;
   }
 
+  // Domain warp noise — distorts biome boundaries for organic shapes
+  FastNoiseLite biome_warp_x;
+  biome_warp_x.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  biome_warp_x.SetFractalType(FastNoiseLite::FractalType_FBm);
+  biome_warp_x.SetFractalOctaves(3);
+  biome_warp_x.SetFrequency(0.002f);
+  biome_warp_x.SetSeed(42);
+
+  FastNoiseLite biome_warp_z;
+  biome_warp_z.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  biome_warp_z.SetFractalType(FastNoiseLite::FractalType_FBm);
+  biome_warp_z.SetFractalOctaves(3);
+  biome_warp_z.SetFrequency(0.002f);
+  biome_warp_z.SetSeed(137);
+
   // Biome selector — low frequency so biome regions are large and gradual
   FastNoiseLite biome;
   biome.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
   biome.SetFractalType(FastNoiseLite::FractalType_FBm);
-  biome.SetFractalOctaves(2);
+  biome.SetFractalOctaves(4);
   biome.SetFractalLacunarity(2.0f);
   biome.SetFractalGain(0.5f);
-  biome.SetFrequency(0.003f);
+  biome.SetFrequency(0.0003f);
 
   // Plains — very low frequency, few octaves, almost no relief
   FastNoiseLite plains_noise;
@@ -205,11 +220,14 @@ int main(int argc, char* argv[]) {
     for (int vx = 0; vx < x; vx++) {
       int base = (vz * x) + vx;
       float fvx = (float)vx, fvz = (float)vz;
-      float b = biome.GetNoise(fvx, fvz); // [-1, 1]: -1 = plains, 0 = forest, +1 = mountains
+      float warp_strength = 80.0f;
+      float warped_x = fvx + biome_warp_x.GetNoise(fvx, fvz) * warp_strength;
+      float warped_z = fvz + biome_warp_z.GetNoise(fvx, fvz) * warp_strength;
+      float b = biome.GetNoise(warped_x, warped_z); // [-1, 1]: -1 = plains, 0 = forest, +1 = mountains
 
       // Triangular basis weights — each biome peaks at a point and tapers linearly.
       // b=-1 → plains, b=0 → forest, b=+1 → mountains. Always sums to 1.
-      float t = glm::clamp((b - 0.3f + 1.0f) * 0.5f, 0.0f, 1.0f); // bias toward plains/forest
+      float t = glm::clamp((b - 0.15f + 1.0f) * 0.5f, 0.0f, 1.0f); // bias toward plains/forest
       float w_plains   = glm::clamp(1.0f - t * 2.0f, 0.0f, 1.0f);
       float w_mountain = glm::clamp(t * 2.0f - 1.0f, 0.0f, 1.0f);
       float w_forest   = 1.0f - w_plains - w_mountain;
@@ -260,8 +278,7 @@ int main(int argc, char* argv[]) {
       glm::vec3 p0(v0[0], v0[1], v0[2]);
       glm::vec3 p1(v1[0], v1[1], v1[2]);
       glm::vec3 p2(v2[0], v2[1], v2[2]);
-      // Use swapped cross order so a flat XZ plane points +Y.
-      glm::vec3 faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
+      glm::vec3 faceNormal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
       vertices[tx].normal[0] += faceNormal.x;
       vertices[tx].normal[1] += faceNormal.y;
       vertices[tx].normal[2] += faceNormal.z;
@@ -274,8 +291,8 @@ int main(int argc, char* argv[]) {
 
       // triangle 2
       tx = (iz * x) + ix;
-      ty = (iz * x) + ix + 1;
-      tz = ((iz + 1) * x) + ix + 1;
+      ty = ((iz + 1) * x) + ix + 1;
+      tz = (iz * x) + ix + 1;
       indices[base + 1][0] = tx;
       indices[base + 1][1] = ty;
       indices[base + 1][2] = tz;
@@ -286,7 +303,7 @@ int main(int argc, char* argv[]) {
       p0 = glm::vec3(v0[0], v0[1], v0[2]);
       p1 = glm::vec3(v1[0], v1[1], v1[2]);
       p2 = glm::vec3(v2[0], v2[1], v2[2]);
-      faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
+      faceNormal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
       vertices[tx].normal[0] += faceNormal.x;
       vertices[tx].normal[1] += faceNormal.y;
       vertices[tx].normal[2] += faceNormal.z;
@@ -373,8 +390,7 @@ int main(int argc, char* argv[]) {
       glm::vec3 p0(v0[0], v0[1], v0[2]);
       glm::vec3 p1(v1[0], v1[1], v1[2]);
       glm::vec3 p2(v2[0], v2[1], v2[2]);
-      // Use swapped cross order so a flat XZ plane points +Y.
-      glm::vec3 faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
+      glm::vec3 faceNormal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
       lod_1_verts[tx].normal[0] += faceNormal.x;
       lod_1_verts[tx].normal[1] += faceNormal.y;
       lod_1_verts[tx].normal[2] += faceNormal.z;
@@ -387,8 +403,8 @@ int main(int argc, char* argv[]) {
 
       // triangle 2
       tx = (iz * lod_1_x) + ix;
-      ty = (iz * lod_1_x) + ix + 1;
-      tz = ((iz + 1) * lod_1_x) + ix + 1;
+      ty = ((iz + 1) * lod_1_x) + ix + 1;
+      tz = (iz * lod_1_x) + ix + 1;
       lod_1_indices[base + 1][0] = tx;
       lod_1_indices[base + 1][1] = ty;
       lod_1_indices[base + 1][2] = tz;
@@ -399,7 +415,7 @@ int main(int argc, char* argv[]) {
       p0 = glm::vec3(v0[0], v0[1], v0[2]);
       p1 = glm::vec3(v1[0], v1[1], v1[2]);
       p2 = glm::vec3(v2[0], v2[1], v2[2]);
-      faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
+      faceNormal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
       lod_1_verts[tx].normal[0] += faceNormal.x;
       lod_1_verts[tx].normal[1] += faceNormal.y;
       lod_1_verts[tx].normal[2] += faceNormal.z;
