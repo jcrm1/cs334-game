@@ -8,12 +8,19 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include "FastNoiseLite.h"
 
 #include "Shader.hpp"
 #include "Camera.hpp"
 #include "Constants.hpp"
+
+#pragma pack(push, 1)
+struct Vertex {
+  float position[3];
+  float normal[3];
+};
+#pragma pack(pop)
+static_assert(sizeof(Vertex) == 6 * sizeof(float), "Vertex struct has unexpected padding");
 
 #define OK (0)
 #define ERR_GLFW (-1)
@@ -21,7 +28,6 @@
 #define ERR_FILE (-3)
 #define ERR_GLSL (-4)
 #define ERR_ALLOCATE (-5)
-#define ERR_STBI (-6)
 
 #define WINDOW_WIDTH (800)
 #define WINDOW_HEIGHT (600)
@@ -114,20 +120,76 @@ int main(int argc, char* argv[]) {
   Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
 
-  int x, y, numChannels;
-  unsigned char *heightmap_data = stbi_load("resources/nashville.png", &x, &y, &numChannels, 1);
-  if (heightmap_data == NULL) {
-    printf("Error while loading image\n");
-    return ERR_STBI;
-  }
-  printf("Loaded file with %d channels, x: %d, y: %d\n", numChannels, x, y);
-  float (*vertices)[2][3] = (float (*)[2][3])calloc((y * x), sizeof(*vertices));
+  //int x = 512, y = 512;
+  int x = 1024, y = 1024;
+
+  //VERTEX ARRAY
+  Vertex *vertices = (Vertex *)calloc((y * x), sizeof(Vertex));
   if (vertices == NULL) {
     printf("Failed to allocate memory for vertices\n");
     return ERR_ALLOCATE;
   }
-  unsigned char heightmap_min = 0xFF;
-  unsigned char heightmap_max = 0;
+
+  // Biome selector — low frequency so biome regions are large and gradual
+  FastNoiseLite biome;
+  biome.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  biome.SetFractalType(FastNoiseLite::FractalType_FBm);
+  biome.SetFractalOctaves(2);
+  biome.SetFractalLacunarity(2.0f);
+  biome.SetFractalGain(0.5f);
+  biome.SetFrequency(0.003f);
+
+  // Plains — very low frequency, few octaves, almost no relief
+  FastNoiseLite plains_noise;
+  plains_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  plains_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
+  plains_noise.SetFractalOctaves(3);
+  plains_noise.SetFractalLacunarity(2.0f);
+  plains_noise.SetFractalGain(0.5f);
+  plains_noise.SetFrequency(0.0001f);
+
+  FastNoiseLite plains_erosion;
+  plains_erosion.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  plains_erosion.SetFractalType(FastNoiseLite::FractalType_FBm);
+  plains_erosion.SetFractalOctaves(3);
+  plains_erosion.SetFractalLacunarity(2.0f);
+  plains_erosion.SetFractalGain(0.4f);
+  plains_erosion.SetFrequency(0.008f);
+
+  // Forest — medium frequency, moderate octaves, rolling hills
+  FastNoiseLite forest_noise;
+  forest_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  forest_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
+  forest_noise.SetFractalOctaves(5);
+  forest_noise.SetFractalLacunarity(2.0f);
+  forest_noise.SetFractalGain(0.5f);
+  forest_noise.SetFrequency(0.001f);
+
+  FastNoiseLite forest_erosion;
+  forest_erosion.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  forest_erosion.SetFractalType(FastNoiseLite::FractalType_FBm);
+  forest_erosion.SetFractalOctaves(5);
+  forest_erosion.SetFractalLacunarity(2.2f);
+  forest_erosion.SetFractalGain(0.3f);
+  forest_erosion.SetFrequency(0.0002f);
+
+  // Mountains — higher frequency, many octaves, high lacunarity for jagged peaks
+  FastNoiseLite mountain_noise;
+  mountain_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  mountain_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
+  mountain_noise.SetFractalOctaves(8);
+  mountain_noise.SetFractalLacunarity(2.6f);
+  mountain_noise.SetFractalGain(0.5f);
+  mountain_noise.SetFrequency(0.0007f);
+
+  FastNoiseLite mountain_erosion;
+  mountain_erosion.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  mountain_erosion.SetFractalType(FastNoiseLite::FractalType_FBm);
+  mountain_erosion.SetFractalOctaves(6);
+  mountain_erosion.SetFractalLacunarity(2.4f);
+  mountain_erosion.SetFractalGain(0.25f);
+  mountain_erosion.SetFrequency(0.003f);
+
   // here's the plan:
   // 1. want collisions
   // 2. wrote neat algorithm for convex triangle mesh collisions with a rectangular prism
@@ -136,20 +198,42 @@ int main(int argc, char* argv[]) {
   // 5. use the model matrix to shrink it down
   // 6. give the camera a very slow speed
   // 7. everything works with no bugs whatsoever. yup
+  float heightmap_min = FLT_MAX;
+  float heightmap_max = -FLT_MAX;
   for (int vz = 0; vz < y; vz++) {
     for (int vx = 0; vx < x; vx++) {
       int base = (vz * x) + vx;
-      vertices[base][0][0] = vx;
-      vertices[base][0][1] = heightmap_data[base] / 16.0f;
-      vertices[base][0][2] = vz;
-      if (heightmap_data[base] > heightmap_max) heightmap_max = heightmap_data[base];
-      if (heightmap_data[base] < heightmap_min) heightmap_min = heightmap_data[base];
+      float fvx = (float)vx, fvz = (float)vz;
+      float b = biome.GetNoise(fvx, fvz); // [-1, 1]: -1 = plains, 0 = forest, +1 = mountains
+
+      // Triangular basis weights — each biome peaks at a point and tapers linearly.
+      // b=-1 → plains, b=0 → forest, b=+1 → mountains. Always sums to 1.
+      float t = (b + 1.0f) * 0.5f; // remap [-1,1] to [0,1]
+      float w_plains   = glm::clamp(1.0f - t * 2.0f, 0.0f, 1.0f);
+      float w_mountain = glm::clamp(t * 2.0f - 1.0f, 0.0f, 1.0f);
+      float w_forest   = 1.0f - w_plains - w_mountain;
+
+      float h_plains   = (plains_noise.GetNoise(fvx, fvz)   - plains_erosion.GetNoise(fvx, fvz)   * 0.15f + 1.0f) * 2.5f;
+      float h_forest   = (forest_noise.GetNoise(fvx, fvz)   - forest_erosion.GetNoise(fvx, fvz)   * 0.20f + 1.0f) * 4.5f;
+      float h_mountain = (mountain_noise.GetNoise(fvx, fvz) - mountain_erosion.GetNoise(fvx, fvz) * 0.35f + 1.0f) * 8.0f;
+
+      float height = w_plains * h_plains + w_forest * h_forest + w_mountain * h_mountain;
+
+      // Flatten terrain below sea level, but skip mountain zones so they keep full relief.
+      t = 1.0f - glm::smoothstep(SEA_LEVEL - 3.0f, SEA_LEVEL, height);
+      t *= (1.0f - w_mountain);
+      height = glm::mix(height, SEA_LEVEL - 0.5f, t);
+
+      vertices[base].position[0] = vx;
+      vertices[base].position[1] = height;
+      vertices[base].position[2] = vz;
+      if (height > heightmap_max) heightmap_max = height;
+      if (height < heightmap_min) heightmap_min = height;
     }
   }
   camera.Position.x = (x / 2) * TERRAIN_SCALE;
   camera.Position.z = (y / 2) * TERRAIN_SCALE;
-  stbi_image_free(heightmap_data);
-  printf("Created vertices. min: %d max: %d\n", heightmap_min, heightmap_max);
+  printf("Generated terrain. min: %.2f max: %.2f\n", heightmap_min, heightmap_max);
   unsigned int (*indices)[3] = (unsigned int (*)[3])malloc(((y - 1) * (x - 1) * 2) * sizeof(*indices));
   if (indices == NULL) {
     printf("Failed to allocate memory for indices\n");
@@ -168,23 +252,23 @@ int main(int argc, char* argv[]) {
       indices[base + 0][2] = tz;
       // triangle 1 face normal
       // there's probably some library function to do this stuff and it probably uses vector ops but i dunno how to do that
-      float *v0 = vertices[tx][0];
-      float *v1 = vertices[ty][0];
-      float *v2 = vertices[tz][0];
+      float *v0 = vertices[tx].position;
+      float *v1 = vertices[ty].position;
+      float *v2 = vertices[tz].position;
       glm::vec3 p0(v0[0], v0[1], v0[2]);
       glm::vec3 p1(v1[0], v1[1], v1[2]);
       glm::vec3 p2(v2[0], v2[1], v2[2]);
       // Use swapped cross order so a flat XZ plane points +Y.
       glm::vec3 faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      vertices[tx][1][0] += faceNormal.x;
-      vertices[tx][1][1] += faceNormal.y;
-      vertices[tx][1][2] += faceNormal.z;
-      vertices[ty][1][0] += faceNormal.x;
-      vertices[ty][1][1] += faceNormal.y;
-      vertices[ty][1][2] += faceNormal.z;
-      vertices[tz][1][0] += faceNormal.x;
-      vertices[tz][1][1] += faceNormal.y;
-      vertices[tz][1][2] += faceNormal.z;
+      vertices[tx].normal[0] += faceNormal.x;
+      vertices[tx].normal[1] += faceNormal.y;
+      vertices[tx].normal[2] += faceNormal.z;
+      vertices[ty].normal[0] += faceNormal.x;
+      vertices[ty].normal[1] += faceNormal.y;
+      vertices[ty].normal[2] += faceNormal.z;
+      vertices[tz].normal[0] += faceNormal.x;
+      vertices[tz].normal[1] += faceNormal.y;
+      vertices[tz].normal[2] += faceNormal.z;
 
       // triangle 2
       tx = (iz * x) + ix;
@@ -194,28 +278,28 @@ int main(int argc, char* argv[]) {
       indices[base + 1][1] = ty;
       indices[base + 1][2] = tz;
       // triangle 2 face normal
-      v0 = vertices[tx][0];
-      v1 = vertices[ty][0];
-      v2 = vertices[tz][0];
+      v0 = vertices[tx].position;
+      v1 = vertices[ty].position;
+      v2 = vertices[tz].position;
       p0 = glm::vec3(v0[0], v0[1], v0[2]);
       p1 = glm::vec3(v1[0], v1[1], v1[2]);
       p2 = glm::vec3(v2[0], v2[1], v2[2]);
       faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      vertices[tx][1][0] += faceNormal.x;
-      vertices[tx][1][1] += faceNormal.y;
-      vertices[tx][1][2] += faceNormal.z;
-      vertices[ty][1][0] += faceNormal.x;
-      vertices[ty][1][1] += faceNormal.y;
-      vertices[ty][1][2] += faceNormal.z;
-      vertices[tz][1][0] += faceNormal.x;
-      vertices[tz][1][1] += faceNormal.y;
-      vertices[tz][1][2] += faceNormal.z;
+      vertices[tx].normal[0] += faceNormal.x;
+      vertices[tx].normal[1] += faceNormal.y;
+      vertices[tx].normal[2] += faceNormal.z;
+      vertices[ty].normal[0] += faceNormal.x;
+      vertices[ty].normal[1] += faceNormal.y;
+      vertices[ty].normal[2] += faceNormal.z;
+      vertices[tz].normal[0] += faceNormal.x;
+      vertices[tz].normal[1] += faceNormal.y;
+      vertices[tz].normal[2] += faceNormal.z;
     }
   }
   printf("Created indices\n");
   // normalize normals
   for (int i = 0; i < y * x; i++) {
-    float *normal = vertices[i][1];
+    float *normal = vertices[i].normal;
     float len = sqrtf((normal[0] * normal[0]) + (normal[1] * normal[1]) + (normal[2] * normal[2]));
     normal[0] /= len;
     normal[1] /= len;
@@ -232,7 +316,7 @@ int main(int argc, char* argv[]) {
   // generate 1/2 density mesh
   int lod_1_x = (int) glm::ceil(x / 2.0);
   int lod_1_z = (int) glm::ceil(y / 2.0);
-  float (*lod_1_verts)[2][3] = (float (*)[2][3])calloc((lod_1_x * lod_1_z), sizeof(*lod_1_verts));
+  Vertex *lod_1_verts = (Vertex *) calloc((lod_1_x * lod_1_z), sizeof(Vertex));
   if (lod_1_verts == NULL) {
     printf("Failed to allocate memory for lod_1_verts\n");
     return ERR_ALLOCATE;
@@ -248,15 +332,15 @@ int main(int argc, char* argv[]) {
       if (ox1 > x - 1) ox1 = x - 1;
       if (oz1 > y - 1) oz1 = y - 1;
 
-      float *p00 = vertices[(oz0 * x) + ox0][0];
-      float *p10 = vertices[(oz0 * x) + ox1][0];
-      float *p01 = vertices[(oz1 * x) + ox0][0];
-      float *p11 = vertices[(oz1 * x) + ox1][0];
+      float *p00 = vertices[(oz0 * x) + ox0].position;
+      float *p10 = vertices[(oz0 * x) + ox1].position;
+      float *p01 = vertices[(oz1 * x) + ox0].position;
+      float *p11 = vertices[(oz1 * x) + ox1].position;
 
       int out = (vz * lod_1_x) + vx;
-      lod_1_verts[out][0][0] = p00[0];
-      lod_1_verts[out][0][1] = (p00[1] + p10[1] + p01[1] + p11[1]) / 4.0f;
-      lod_1_verts[out][0][2] = p00[2];
+      lod_1_verts[out].position[0] = p00[0];
+      lod_1_verts[out].position[1] = (p00[1] + p10[1] + p01[1] + p11[1]) / 4.0f;
+      lod_1_verts[out].position[2] = p00[2];
     }
   }
   unsigned int (*lod_1_indices)[3] = (unsigned int (*)[3])malloc(((lod_1_x - 1) * (lod_1_z - 1) * 2) * sizeof(*lod_1_indices));
@@ -276,23 +360,23 @@ int main(int argc, char* argv[]) {
       lod_1_indices[base + 0][2] = tz;
       // triangle 1 face normal
       // there's probably some library function to do this stuff and it probably uses vector ops but i dunno how to do that
-      float *v0 = lod_1_verts[tx][0];
-      float *v1 = lod_1_verts[ty][0];
-      float *v2 = lod_1_verts[tz][0];
+      float *v0 = lod_1_verts[tx].position;
+      float *v1 = lod_1_verts[ty].position;
+      float *v2 = lod_1_verts[tz].position;
       glm::vec3 p0(v0[0], v0[1], v0[2]);
       glm::vec3 p1(v1[0], v1[1], v1[2]);
       glm::vec3 p2(v2[0], v2[1], v2[2]);
       // Use swapped cross order so a flat XZ plane points +Y.
       glm::vec3 faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      lod_1_verts[tx][1][0] += faceNormal.x;
-      lod_1_verts[tx][1][1] += faceNormal.y;
-      lod_1_verts[tx][1][2] += faceNormal.z;
-      lod_1_verts[ty][1][0] += faceNormal.x;
-      lod_1_verts[ty][1][1] += faceNormal.y;
-      lod_1_verts[ty][1][2] += faceNormal.z;
-      lod_1_verts[tz][1][0] += faceNormal.x;
-      lod_1_verts[tz][1][1] += faceNormal.y;
-      lod_1_verts[tz][1][2] += faceNormal.z;
+      lod_1_verts[tx].normal[0] += faceNormal.x;
+      lod_1_verts[tx].normal[1] += faceNormal.y;
+      lod_1_verts[tx].normal[2] += faceNormal.z;
+      lod_1_verts[ty].normal[0] += faceNormal.x;
+      lod_1_verts[ty].normal[1] += faceNormal.y;
+      lod_1_verts[ty].normal[2] += faceNormal.z;
+      lod_1_verts[tz].normal[0] += faceNormal.x;
+      lod_1_verts[tz].normal[1] += faceNormal.y;
+      lod_1_verts[tz].normal[2] += faceNormal.z;
 
       // triangle 2
       tx = (iz * lod_1_x) + ix;
@@ -302,27 +386,27 @@ int main(int argc, char* argv[]) {
       lod_1_indices[base + 1][1] = ty;
       lod_1_indices[base + 1][2] = tz;
       // triangle 2 face normal
-      v0 = lod_1_verts[tx][0];
-      v1 = lod_1_verts[ty][0];
-      v2 = lod_1_verts[tz][0];
+      v0 = lod_1_verts[tx].position;
+      v1 = lod_1_verts[ty].position;
+      v2 = lod_1_verts[tz].position;
       p0 = glm::vec3(v0[0], v0[1], v0[2]);
       p1 = glm::vec3(v1[0], v1[1], v1[2]);
       p2 = glm::vec3(v2[0], v2[1], v2[2]);
       faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      lod_1_verts[tx][1][0] += faceNormal.x;
-      lod_1_verts[tx][1][1] += faceNormal.y;
-      lod_1_verts[tx][1][2] += faceNormal.z;
-      lod_1_verts[ty][1][0] += faceNormal.x;
-      lod_1_verts[ty][1][1] += faceNormal.y;
-      lod_1_verts[ty][1][2] += faceNormal.z;
-      lod_1_verts[tz][1][0] += faceNormal.x;
-      lod_1_verts[tz][1][1] += faceNormal.y;
-      lod_1_verts[tz][1][2] += faceNormal.z;
+      lod_1_verts[tx].normal[0] += faceNormal.x;
+      lod_1_verts[tx].normal[1] += faceNormal.y;
+      lod_1_verts[tx].normal[2] += faceNormal.z;
+      lod_1_verts[ty].normal[0] += faceNormal.x;
+      lod_1_verts[ty].normal[1] += faceNormal.y;
+      lod_1_verts[ty].normal[2] += faceNormal.z;
+      lod_1_verts[tz].normal[0] += faceNormal.x;
+      lod_1_verts[tz].normal[1] += faceNormal.y;
+      lod_1_verts[tz].normal[2] += faceNormal.z;
     }
   }
   // lod 1 normalize normals
   for (int i = 0; i < lod_1_z * lod_1_x; i++) {
-    float *normal = lod_1_verts[i][1];
+    float *normal = lod_1_verts[i].normal;
     float len = sqrtf((normal[0] * normal[0]) + (normal[1] * normal[1]) + (normal[2] * normal[2]));
     if (len > 0.00001f) {
       normal[0] /= len;
@@ -349,9 +433,9 @@ int main(int argc, char* argv[]) {
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, ((y - 1) * (x - 1) * 2) * sizeof(*indices), indices, GL_STATIC_DRAW);
   // 4. then set the vertex attributes pointers
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, position));
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
   glEnableVertexAttribArray(1);
 
   unsigned int VAO_LOD, VBO_LOD, EBO_LOD;
@@ -515,10 +599,10 @@ int main(int argc, char* argv[]) {
     int z_offset_ceil = z_scaled_floor + OFFSET(z_scaled_floor);
     float max_height = 0;
     if (!((x_offset_floor < 0 || x_offset_ceil > x) || (z_offset_floor < 0 || z_offset_ceil > y))) {
-      float neg_neg_height = vertices[(z_offset_floor * x) + x_offset_floor][0][1];
-      float neg_pos_height = vertices[(z_offset_ceil * x) + x_offset_floor][0][1];
-      float pos_pos_height = vertices[(z_offset_ceil * x) + x_offset_ceil][0][1];
-      float pos_neg_height = vertices[(z_offset_floor * x) + x_offset_ceil][0][1];
+      float neg_neg_height = vertices[(z_offset_floor * x) + x_offset_floor].position[1];
+      float neg_pos_height = vertices[(z_offset_ceil * x) + x_offset_floor].position[1];
+      float pos_pos_height = vertices[(z_offset_ceil * x) + x_offset_ceil].position[1];
+      float pos_neg_height = vertices[(z_offset_floor * x) + x_offset_ceil].position[1];
       if (neg_neg_height > max_height) max_height = neg_neg_height;
       if (neg_pos_height > max_height) max_height = neg_pos_height;
       if (pos_pos_height > max_height) max_height = pos_pos_height;
@@ -547,6 +631,7 @@ int main(int argc, char* argv[]) {
     terrain_shader.setVec4("clearColor", clearColor);
     terrain_shader.setFloat("fogStart", fogStart);
     terrain_shader.setFloat("fogLength", fogLength);
+    terrain_shader.setFloat("seaLevel", SEA_LEVEL);
     terrain_shader.setVec3("lightPos", lightPos);
     terrain_shader.setBool("enableFog", enableFog);
 

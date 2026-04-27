@@ -4,4 +4,6 @@
 #define TERRAIN_SCALE_RECIPROCAL (10) // 1 over X
 #define TERRAIN_SCALE (1.0 / TERRAIN_SCALE_RECIPROCAL)
 
+#define SEA_LEVEL (4.0f)
+
 #endif

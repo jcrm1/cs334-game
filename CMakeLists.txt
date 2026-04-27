@@ -15,7 +15,6 @@ target_sources(Game PRIVATE
   src/main.cpp
   src/Shader.hpp
   src/Camera.hpp
-  src/stb_image.h
   src/Constants.hpp
 )
 

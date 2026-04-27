@@ -4,6 +4,7 @@ out vec4 FragColor;
 in vec3 vNormal;
 in vec3 vPos;
 in vec3 vColor;
+in float vHeight;
 
 uniform vec3 cameraPos;
 uniform vec4 clearColor;
@@ -11,14 +12,16 @@ uniform vec4 clearColor;
 uniform bool enableFog;
 uniform float fogStart;
 uniform float fogLength;
+uniform float seaLevel;
 uniform bool near;
 
 const vec3 lightPos = vec3(200.0, 200.0, 0.0);
 
 void main() {
     vec3 outColor = vec3(1.0,0.0,0.0);
-    if (vColor.y < 0.35) {
-        outColor = vec3(0.0, vColor.y, clamp(vColor.y * 4, 0.0, 1.0));
+    if (vHeight < seaLevel) {
+        float depth = (seaLevel - vHeight) / seaLevel;
+        outColor = vec3(0.0, 0.3 - depth * 0.2, clamp(0.8 - depth * 0.3, 0.0, 1.0));
     } else {
         outColor = vColor;
     }
