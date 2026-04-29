@@ -16,8 +16,8 @@
 
 #pragma pack(push, 1)
 struct Vertex {
-  float position[3];
-  float normal[3];
+  glm::vec3 position;
+  glm::vec3 normal;
 };
 #pragma pack(pop)
 static_assert(sizeof(Vertex) == 6 * sizeof(float), "Vertex struct has unexpected padding");
@@ -224,9 +224,9 @@ int main(int argc, char* argv[]) {
       t *= (1.0f - w_mountain);
       height = glm::mix(height, SEA_LEVEL - 0.5f, t);
 
-      vertices[base].position[0] = vx;
-      vertices[base].position[1] = height;
-      vertices[base].position[2] = vz;
+      vertices[base].position.x = vx;
+      vertices[base].position.y = height;
+      vertices[base].position.z = vz;
       if (height > heightmap_max) heightmap_max = height;
       if (height < heightmap_min) heightmap_min = height;
     }
@@ -243,67 +243,46 @@ int main(int argc, char* argv[]) {
     for (int ix = 0; ix < x - 1; ix++) {
       int base = (iz * (x - 1) + ix) * 2;
       // triangle 1
-      int tx = (iz * x) + ix;
-      int ty = ((iz + 1) * x) + ix;
-      int tz = ((iz + 1) * x) + ix + 1;
+      int tx = (iz * x) + ix; // top left
+      int ty = ((iz + 1) * x) + ix; // bottom left
+      int tz = ((iz + 1) * x) + ix + 1; // bottom right
       if (iz < 5 && ix < 5) printf("iz %d ix %d tx %d ty %d tz %d\n", iz, ix, tx, ty, tz);
       indices[base + 0][0] = tx;
       indices[base + 0][1] = ty;
       indices[base + 0][2] = tz;
       // triangle 1 face normal
       // there's probably some library function to do this stuff and it probably uses vector ops but i dunno how to do that
-      float *v0 = vertices[tx].position;
-      float *v1 = vertices[ty].position;
-      float *v2 = vertices[tz].position;
-      glm::vec3 p0(v0[0], v0[1], v0[2]);
-      glm::vec3 p1(v1[0], v1[1], v1[2]);
-      glm::vec3 p2(v2[0], v2[1], v2[2]);
+      glm::vec3 v0 = vertices[tx].position;
+      glm::vec3 v1 = vertices[ty].position;
+      glm::vec3 v2 = vertices[tz].position;
       // Use swapped cross order so a flat XZ plane points +Y.
-      glm::vec3 faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      vertices[tx].normal[0] += faceNormal.x;
-      vertices[tx].normal[1] += faceNormal.y;
-      vertices[tx].normal[2] += faceNormal.z;
-      vertices[ty].normal[0] += faceNormal.x;
-      vertices[ty].normal[1] += faceNormal.y;
-      vertices[ty].normal[2] += faceNormal.z;
-      vertices[tz].normal[0] += faceNormal.x;
-      vertices[tz].normal[1] += faceNormal.y;
-      vertices[tz].normal[2] += faceNormal.z;
+      glm::vec3 faceNormal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+      vertices[tx].normal += faceNormal;
+      vertices[ty].normal += faceNormal;
+      vertices[tz].normal += faceNormal;
 
       // triangle 2
-      tx = (iz * x) + ix;
-      ty = (iz * x) + ix + 1;
-      tz = ((iz + 1) * x) + ix + 1;
-      indices[base + 1][0] = tx;
+      tx = (iz * x) + ix; // top left
+      ty = (iz * x) + ix + 1; // top right
+      tz = ((iz + 1) * x) + ix + 1; // bottom right
+      indices[base + 1][0] = tz;
       indices[base + 1][1] = ty;
-      indices[base + 1][2] = tz;
+      indices[base + 1][2] = tx;
       // triangle 2 face normal
-      v0 = vertices[tx].position;
+      v0 = vertices[tz].position;
       v1 = vertices[ty].position;
-      v2 = vertices[tz].position;
-      p0 = glm::vec3(v0[0], v0[1], v0[2]);
-      p1 = glm::vec3(v1[0], v1[1], v1[2]);
-      p2 = glm::vec3(v2[0], v2[1], v2[2]);
-      faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      vertices[tx].normal[0] += faceNormal.x;
-      vertices[tx].normal[1] += faceNormal.y;
-      vertices[tx].normal[2] += faceNormal.z;
-      vertices[ty].normal[0] += faceNormal.x;
-      vertices[ty].normal[1] += faceNormal.y;
-      vertices[ty].normal[2] += faceNormal.z;
-      vertices[tz].normal[0] += faceNormal.x;
-      vertices[tz].normal[1] += faceNormal.y;
-      vertices[tz].normal[2] += faceNormal.z;
+      v2 = vertices[tx].position;
+      faceNormal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+      vertices[tx].normal += faceNormal;
+      vertices[ty].normal += faceNormal;
+      vertices[tz].normal += faceNormal;
     }
   }
   printf("Created indices\n");
   // normalize normals
   for (int i = 0; i < y * x; i++) {
-    float *normal = vertices[i].normal;
-    float len = sqrtf((normal[0] * normal[0]) + (normal[1] * normal[1]) + (normal[2] * normal[2]));
-    normal[0] /= len;
-    normal[1] /= len;
-    normal[2] /= len;
+    if (glm::length(vertices[i].normal) > 0.0001f) vertices[i].normal = glm::normalize(vertices[i].normal);
+    else vertices[i].normal = glm::vec3(0, 1, 0);
   }
   printf("Normalized normals\n");
 
@@ -332,15 +311,15 @@ int main(int argc, char* argv[]) {
       if (ox1 > x - 1) ox1 = x - 1;
       if (oz1 > y - 1) oz1 = y - 1;
 
-      float *p00 = vertices[(oz0 * x) + ox0].position;
-      float *p10 = vertices[(oz0 * x) + ox1].position;
-      float *p01 = vertices[(oz1 * x) + ox0].position;
-      float *p11 = vertices[(oz1 * x) + ox1].position;
+      glm::vec3 p00 = vertices[(oz0 * x) + ox0].position;
+      glm::vec3 p10 = vertices[(oz0 * x) + ox1].position;
+      glm::vec3 p01 = vertices[(oz1 * x) + ox0].position;
+      glm::vec3 p11 = vertices[(oz1 * x) + ox1].position;
 
       int out = (vz * lod_1_x) + vx;
-      lod_1_verts[out].position[0] = p00[0];
-      lod_1_verts[out].position[1] = (p00[1] + p10[1] + p01[1] + p11[1]) / 4.0f;
-      lod_1_verts[out].position[2] = p00[2];
+      lod_1_verts[out].position.x = p00.x;
+      lod_1_verts[out].position.y = (p00.y + p10.y + p01.y + p11.y) / 4.0f;
+      lod_1_verts[out].position.z = p00.z;
     }
   }
   unsigned int (*lod_1_indices)[3] = (unsigned int (*)[3])malloc(((lod_1_x - 1) * (lod_1_z - 1) * 2) * sizeof(*lod_1_indices));
@@ -360,63 +339,37 @@ int main(int argc, char* argv[]) {
       lod_1_indices[base + 0][2] = tz;
       // triangle 1 face normal
       // there's probably some library function to do this stuff and it probably uses vector ops but i dunno how to do that
-      float *v0 = lod_1_verts[tx].position;
-      float *v1 = lod_1_verts[ty].position;
-      float *v2 = lod_1_verts[tz].position;
-      glm::vec3 p0(v0[0], v0[1], v0[2]);
-      glm::vec3 p1(v1[0], v1[1], v1[2]);
-      glm::vec3 p2(v2[0], v2[1], v2[2]);
+      glm::vec3 v0 = lod_1_verts[tx].position;
+      glm::vec3 v1 = lod_1_verts[ty].position;
+      glm::vec3 v2 = lod_1_verts[tz].position;
       // Use swapped cross order so a flat XZ plane points +Y.
-      glm::vec3 faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      lod_1_verts[tx].normal[0] += faceNormal.x;
-      lod_1_verts[tx].normal[1] += faceNormal.y;
-      lod_1_verts[tx].normal[2] += faceNormal.z;
-      lod_1_verts[ty].normal[0] += faceNormal.x;
-      lod_1_verts[ty].normal[1] += faceNormal.y;
-      lod_1_verts[ty].normal[2] += faceNormal.z;
-      lod_1_verts[tz].normal[0] += faceNormal.x;
-      lod_1_verts[tz].normal[1] += faceNormal.y;
-      lod_1_verts[tz].normal[2] += faceNormal.z;
+      glm::vec3 faceNormal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+      lod_1_verts[tx].normal += faceNormal;
+      lod_1_verts[ty].normal += faceNormal;
+      lod_1_verts[tz].normal += faceNormal;
 
       // triangle 2
       tx = (iz * lod_1_x) + ix;
       ty = (iz * lod_1_x) + ix + 1;
       tz = ((iz + 1) * lod_1_x) + ix + 1;
-      lod_1_indices[base + 1][0] = tx;
+      lod_1_indices[base + 1][0] = tz;
       lod_1_indices[base + 1][1] = ty;
-      lod_1_indices[base + 1][2] = tz;
+      lod_1_indices[base + 1][2] = tx;
       // triangle 2 face normal
-      v0 = lod_1_verts[tx].position;
+      v0 = lod_1_verts[tz].position;
       v1 = lod_1_verts[ty].position;
-      v2 = lod_1_verts[tz].position;
-      p0 = glm::vec3(v0[0], v0[1], v0[2]);
-      p1 = glm::vec3(v1[0], v1[1], v1[2]);
-      p2 = glm::vec3(v2[0], v2[1], v2[2]);
-      faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      lod_1_verts[tx].normal[0] += faceNormal.x;
-      lod_1_verts[tx].normal[1] += faceNormal.y;
-      lod_1_verts[tx].normal[2] += faceNormal.z;
-      lod_1_verts[ty].normal[0] += faceNormal.x;
-      lod_1_verts[ty].normal[1] += faceNormal.y;
-      lod_1_verts[ty].normal[2] += faceNormal.z;
-      lod_1_verts[tz].normal[0] += faceNormal.x;
-      lod_1_verts[tz].normal[1] += faceNormal.y;
-      lod_1_verts[tz].normal[2] += faceNormal.z;
+      v2 = lod_1_verts[tx].position;
+      faceNormal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+      lod_1_verts[tx].normal += faceNormal;
+      lod_1_verts[ty].normal += faceNormal;
+      lod_1_verts[tz].normal += faceNormal;
     }
   }
   // lod 1 normalize normals
   for (int i = 0; i < lod_1_z * lod_1_x; i++) {
-    float *normal = lod_1_verts[i].normal;
-    float len = sqrtf((normal[0] * normal[0]) + (normal[1] * normal[1]) + (normal[2] * normal[2]));
-    if (len > 0.00001f) {
-      normal[0] /= len;
-      normal[1] /= len;
-      normal[2] /= len;
-    } else {
-      normal[0] = 0.0f;
-      normal[1] = 1.0f;
-      normal[2] = 0.0f;
-    }
+    if (glm::length(lod_1_verts[i].normal) > 0.0001f) lod_1_verts[i].normal = glm::normalize(lod_1_verts[i].normal);
+    else lod_1_verts[i].normal = glm::vec3(0, 1, 0);
+    
   }
 
   unsigned int VAO, VBO, EBO;
