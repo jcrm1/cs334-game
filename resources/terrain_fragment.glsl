@@ -15,7 +15,7 @@ uniform float fogLength;
 uniform float seaLevel;
 uniform bool near;
 
-const vec3 lightPos = vec3(200.0, 200.0, 0.0);
+uniform vec3 lightPos;
 
 void main() {
     vec3 outColor = vec3(1.0,0.0,0.0);
