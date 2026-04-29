@@ -4,8 +4,9 @@ layout (location = 1) in vec3 aNormal;
 
 out vec3 vColor;
 out vec3 vPos;
+out vec3 vNormal;
 out float vHeight;
-// out vec3 vNormal;
+
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
@@ -20,6 +21,6 @@ void main()
    vPos = vec3(model * vec4(aPos, 1.0));
    vHeight = aPos.y;
    vColor = vec3(aPos.y / 16.0, aPos.y / 16.0, aPos.y / 16.0);
-   // vNormal = vec3(normalMatrix * vec4(aNormal, 0.0));
+   vNormal = normalize(vec3(normalMatrix * vec4(aNormal, 0.0)));
    // vColor = vec3(1.0, 0.0, 0.0);
 }
