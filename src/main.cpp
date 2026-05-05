@@ -304,8 +304,8 @@ int main(int argc, char* argv[]) {
   }
   printf("Normalized normals\n");
 
-  int source = 378;
-  int amount = 901;
+  int source = 3008;
+  int amount = 500;
   int *waterBottom = (int *)malloc(amount * sizeof(int));
   if (waterBottom == NULL) {
     printf("Failed to allocate memory for waterBottom\n");
