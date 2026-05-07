@@ -304,8 +304,8 @@ int main(int argc, char* argv[]) {
   }
   printf("Normalized normals\n");
 
-  int source = 3008;
-  int amount = 500;
+  int source = 524800;
+  int amount = 5000;
   int *waterBottom = (int *)malloc(amount * sizeof(int));
   if (waterBottom == NULL) {
     printf("Failed to allocate memory for waterBottom\n");
@@ -313,6 +313,8 @@ int main(int argc, char* argv[]) {
   }
   createBottomMesh(&waterBottom, source, amount, (vertices), indices, (y - 1) * (x - 1) * 2, x*y);
   printf("Created water bottom mesh\n");
+
+  // printtriangles(waterBottom, amount);
 
   //get triangle indices and vertices for water bottom mesh
 
@@ -474,6 +476,7 @@ int main(int argc, char* argv[]) {
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
   glEnableVertexAttribArray(1);
+  printf("Created terrain VAO\n");
 
 
   // water bottom mesh (non-functional)
