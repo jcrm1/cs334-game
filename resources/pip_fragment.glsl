@@ -1,17 +1,12 @@
 #version 330 core
 out vec4 FragColor;
 
-in vec2 texCoord;
-
 uniform uint screenWidth;
 uniform uint screenHeight;
 uniform sampler2D tex;
 
 const float pipSize = 2.0 / 3.0;
 
-float mapf(float val, float in_min, float in_max, float out_min, float out_max) {
-  return ((((val - in_min) / (in_max - in_min)) * (out_max - out_min)) + out_min);
-}
 vec2 map2f(vec2 val, vec2 in_min, vec2 in_max, vec2 out_min, vec2 out_max) {
   return ((((val - in_min) / (in_max - in_min)) * (out_max - out_min)) + out_min);
 }
