@@ -305,7 +305,7 @@ int main(int argc, char* argv[]) {
   printf("Normalized normals\n");
 
   int source = 524800;
-  int amount = 5000;
+  int amount = 50000;
   int *waterBottom = (int *)malloc(amount * sizeof(int));
   if (waterBottom == NULL) {
     printf("Failed to allocate memory for waterBottom\n");
@@ -604,25 +604,25 @@ int main(int argc, char* argv[]) {
   glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mask_rbo);
 
-  // unsigned int terrain_lod_tex;
-  // glGenTextures(1, &terrain_lod_tex);
-  // glBindTexture(GL_TEXTURE_2D, terrain_lod_tex);
-  // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, window_width, window_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  unsigned int terrain_lod_tex;
+  glGenTextures(1, &terrain_lod_tex);
+  glBindTexture(GL_TEXTURE_2D, terrain_lod_tex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, window_width, window_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-  // unsigned int terrain_lod_fbo;
-  // glGenFramebuffers(1, &terrain_lod_fbo);
-  // glBindFramebuffer(GL_FRAMEBUFFER, terrain_lod_fbo);
-  // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, terrain_lod_tex, 0);
+  unsigned int terrain_lod_fbo;
+  glGenFramebuffers(1, &terrain_lod_fbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, terrain_lod_fbo);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, terrain_lod_tex, 0);
 
-  // unsigned int terrain_lod_rbo;
-  // glGenRenderbuffers(1, &terrain_lod_rbo);
-  // glBindRenderbuffer(GL_RENDERBUFFER, terrain_lod_rbo);
-  // glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
-  // glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, terrain_lod_rbo);
+  unsigned int terrain_lod_rbo;
+  glGenRenderbuffers(1, &terrain_lod_rbo);
+  glBindRenderbuffer(GL_RENDERBUFFER, terrain_lod_rbo);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, terrain_lod_rbo);
 
   glm::mat4 normalMatrix = glm::transpose(glm::inverse(model));
   unsigned long frameCount = 1;
@@ -774,7 +774,7 @@ int main(int argc, char* argv[]) {
     godray_shader.use();
     godray_shader.setUnsignedInt("screenWidth", window_width);
     godray_shader.setUnsignedInt("screenHeight", window_height);
-    // godray_shader.setMat4("model", glm::value_ptr(model));
+    godray_shader.setMat4("model", glm::value_ptr(model));
     godray_shader.setMat4("view", glm::value_ptr(view));
     godray_shader.setMat4("projection", glm::value_ptr(projection));
     godray_shader.setVec4("clearColor", clearColor);

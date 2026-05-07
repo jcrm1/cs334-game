@@ -174,20 +174,35 @@ static int insertSort(int triangle, int** waterBottom, int amount, int ** validP
 }
 
 static void addTriangles(int ** mesh, int ** validPoints, int currentPoint, int * validCount, int * triCount, int amount, 
-    int indexQuantity, int pointQuantity, unsigned int (*indices)[3], Vertex (*landMesh)){
+    int indexQuantity, int pointQuantity, unsigned int (*indices)[3], Vertex (*landMesh), int * includeTriangles){
     //for each triangle
     //if point is in it
     //  insert sort the triangle
     //  change counters appropriately
     // printf("tricount: %d", *triCount);
-    for (int i = 0; i < indexQuantity; i++){
+    int width = 1024;
+    int indTriDim = 2*width-2;
+    int currentX = currentPoint % width;
+    int currentY = currentPoint / width;
+    includeTriangles[0] = (currentY-1)*indTriDim+currentX*2+1;
+    includeTriangles[1] = (currentY-1)*indTriDim+currentX*2;
+    includeTriangles[2] = (currentY-1)*indTriDim+currentX*2-2;
+    includeTriangles[3] = currentY*indTriDim+currentX*2+1;
+    includeTriangles[4] = currentY*indTriDim+currentX*2;
+    includeTriangles[5] = currentY*indTriDim+currentX*2-1;
+
+    for (int i = 0; i < 6; i++){
+        if (includeTriangles[i] < 0 || includeTriangles[i] >= indexQuantity){
+            // printf("Triangle index %d is out of bounds, skipping\n", includeTriangles[i]);
+            // printf("currentPoint: %d\n", currentPoint);
+            continue;
+        }
         for (int j = 0; j < 3; j++){
-            if (indices[i][j] == currentPoint){
-                // printf("Adding triangle %d\n", i);
-                *triCount += insertSort(i, mesh, amount, validPoints, validCount, *triCount, indices, landMesh);
+            if (indices[includeTriangles[i]][j] == currentPoint){
+                // printf("Adding triangle %d\n", includeTriangles[i]);
+                *triCount += insertSort(includeTriangles[i], mesh, amount, validPoints, validCount, *triCount, indices, landMesh);
                 // printf("Current triCount: %d\n", *triCount);
             }
-            //other cases here
         }
     }
     // printf("Added triangles for point %d, current triCount: %d\n", currentPoint, *triCount);
@@ -214,6 +229,8 @@ void createBottomMesh(int **waterBottom, int source, int amount, Vertex * landMe
     validPoints[0] = source;
     validCount++;
 
+    int (*includeTriangles) = (int *) malloc(6 * sizeof(int));
+
     while (triCount < amount){
         //Get first point in validPoints (1)
         //If invalid, check next point (goto 2) (2)
@@ -232,8 +249,8 @@ void createBottomMesh(int **waterBottom, int source, int amount, Vertex * landMe
             if (currentPoint == invalidPoints[i]){
                 currentPoint = validPoints[i+1];
                 if (i+1 >= validCount){
-                    printf("No more valid points, stopping, at i: %d\n", i);
-                    printf("invalidCount: %d\n, triCount: %d\n", invalidCount, triCount);
+                    // printf("No more valid points, stopping, at i: %d\n", i);
+                    // printf("invalidCount: %d\n, triCount: %d\n", invalidCount, triCount);
                 }
                 // printf("Point is invalid, moving to next point: %d\n", currentPoint);
             }
@@ -243,7 +260,7 @@ void createBottomMesh(int **waterBottom, int source, int amount, Vertex * landMe
         //     printtriangles(validPoints, validCount);
         // }
         addTriangles(waterBottom, &validPoints, currentPoint, &validCount, &triCount, 
-            amount, indexQuantity, pointQuantity, indices, landMesh);
+            amount, indexQuantity, pointQuantity, indices, landMesh, includeTriangles);
         //first find smallest point from triangle?
         invalidPoints[invalidCount] = currentPoint;
         invalidCount++;
