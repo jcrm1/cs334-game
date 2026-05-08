@@ -542,6 +542,7 @@ int main(int argc, char* argv[]) {
     if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS && !fogKeyDown) {
       enableFog = !enableFog;
       fogKeyDown = true;
+      printf("Fog toggled %d\n", enableFog);
     } else if (glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
       fogKeyDown = false;
     }
