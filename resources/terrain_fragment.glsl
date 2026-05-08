@@ -69,26 +69,4 @@ void main() {
         }
     }
     FragColor = vec4(outColor, gl_FragCoord.z);
-
-    // vec3 lightDir = normalize(lightPos - vPos);
-    // vec3 normal = normalize(vNormal);
-
-    // // float a = dot(lightDir, normal);
-    // // if (a < 0.0) {
-    // //     FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-    // // } else {
-    // //     float ambientStrength = 0.5;
-    // //     vec3 ambient = ambientStrength * vColor;
-    // //     vec3 diffuse = a * vColor;
-    // //     vec3 result = ambient + diffuse;
-    // //     FragColor = vec4(result, 1.0);
-    // // }
-
-    // float a = max(dot(lightDir, normal), 0.0);
-    // float ambientStrength = 0.2;
-    // vec3 ambient = ambientStrength * vColor;
-    // vec3 diffuse = a * vColor;
-    // vec3 result = ambient + diffuse;
-    // FragColor = vec4(result, 1.0);
-    
 }

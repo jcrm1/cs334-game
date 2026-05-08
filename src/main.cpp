@@ -119,6 +119,7 @@ int main(int argc, char* argv[]) {
   Shader terrain_shader("resources/terrain_vertex.glsl", "resources/terrain_fragment.glsl");
   Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
+  Shader pip_shader("resources/pip_vertex.glsl", "resources/pip_fragment.glsl");
 
   //int x = 512, y = 512;
   int x = 1024, y = 1024;
@@ -521,6 +522,10 @@ int main(int argc, char* argv[]) {
   bool grounded = false;
   bool fogKeyDown = false;
   bool enableFog = true;
+  bool godraysKeyDown = false;
+  bool enableGodrays = true;
+  bool pipKeyDown = false;
+  bool enablePip = true;
   while (!glfwWindowShouldClose(window)) {
     float currentFrame = static_cast<float>(glfwGetTime());
     deltaTime = currentFrame - lastFrame;
@@ -537,8 +542,23 @@ int main(int argc, char* argv[]) {
     if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS && !fogKeyDown) {
       enableFog = !enableFog;
       fogKeyDown = true;
+      printf("Fog toggled %d\n", enableFog);
     } else if (glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
       fogKeyDown = false;
+    }
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS && !godraysKeyDown) {
+      enableGodrays = !enableGodrays;
+      godraysKeyDown = true;
+      printf("Godrays toggled %d\n", enableGodrays);
+    } else if (glfwGetKey(window, GLFW_KEY_G) == GLFW_RELEASE) {
+      godraysKeyDown = false;
+    }
+    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && !pipKeyDown) {
+      enablePip = !enablePip;
+      pipKeyDown = true;
+      printf("PiP toggled %d\n", enablePip);
+    } else if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
+      pipKeyDown = false;
     }
 
     // Process "collisions" but it's really just checking terrain heights
@@ -646,7 +666,24 @@ int main(int argc, char* argv[]) {
     godray_shader.setFloat("fogLength", fogLength);
     godray_shader.setVec3("cameraPos", camera.Position);
     godray_shader.setBool("enableFog", enableFog);
+    godray_shader.setBool("enableGodrays", enableGodrays);
     glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    // render pip
+    if (enablePip) {
+      int vp_x = (window_width * 2) / 3;
+      int vp_y = (window_height * 2) / 3;
+      int vp_width = window_width - vp_x;
+      int vp_height = window_height - vp_y;
+      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+      glViewport(vp_x, vp_y, vp_width, vp_height);
+      pip_shader.use();
+      pip_shader.setUnsignedInt("screenWidth", window_width);
+      pip_shader.setUnsignedInt("screenHeight", window_height);
+      pip_shader.setInt("tex", 1);
+      glBindVertexArray(screen_vao);
+      glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
 
     // done rendering
     glBindVertexArray(0);
