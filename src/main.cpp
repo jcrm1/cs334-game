@@ -628,9 +628,8 @@ int main(int argc, char* argv[]) {
     occlusion_shader.setFloat("fogLength", fogLength);
     occlusion_shader.setBool("enableFog", enableFog);
 
-    // render occlusion mask with LOD bc it can be imprecise
-    glBindVertexArray(VAO_LOD);
-    glDrawElements(GL_TRIANGLES, (lod_1_z - 1) * (lod_1_x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
+    glBindVertexArray(VAO);
+    glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
 
     // render post-processing
     glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
