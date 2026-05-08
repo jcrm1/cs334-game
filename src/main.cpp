@@ -522,6 +522,8 @@ int main(int argc, char* argv[]) {
   bool grounded = false;
   bool fogKeyDown = false;
   bool enableFog = true;
+  bool godraysKeyDown = false;
+  bool enableGodrays = true;
   bool pipKeyDown = false;
   bool enablePip = true;
   while (!glfwWindowShouldClose(window)) {
@@ -542,6 +544,13 @@ int main(int argc, char* argv[]) {
       fogKeyDown = true;
     } else if (glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
       fogKeyDown = false;
+    }
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS && !godraysKeyDown) {
+      enableGodrays = !enableGodrays;
+      godraysKeyDown = true;
+      printf("Godrays toggled %d\n", enableGodrays);
+    } else if (glfwGetKey(window, GLFW_KEY_G) == GLFW_RELEASE) {
+      godraysKeyDown = false;
     }
     if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && !pipKeyDown) {
       enablePip = !enablePip;
@@ -656,6 +665,7 @@ int main(int argc, char* argv[]) {
     godray_shader.setFloat("fogLength", fogLength);
     godray_shader.setVec3("cameraPos", camera.Position);
     godray_shader.setBool("enableFog", enableFog);
+    godray_shader.setBool("enableGodrays", enableGodrays);
     glDrawArrays(GL_TRIANGLES, 0, 3);
 
     // render pip
