@@ -16,9 +16,9 @@ uniform bool enableFog;
 void main() {
   float dist = distance(vPos, cameraPos);
   if (enableFog && dist > fogStart) {
-    float s = min((dist - fogStart) / fogLength, 1.0);
-    FragColor = vec4(s, 0, gl_FragCoord.z, 1.0);
+    float s = clamp((dist - fogStart) / fogLength, 0.0, 1.0);
+    FragColor = vec4(s, 0, gl_FragCoord.z, 1.0); // fog level, 0, depth, 1
   } else {
-    FragColor = vec4(0.0, 0.0, gl_FragCoord.z, 0.0); // black
+    FragColor = vec4(0.0, 0.0, gl_FragCoord.z, 0.0); // black // 0, 0, depth, 0
   }
 }

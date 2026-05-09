@@ -13,18 +13,13 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+#include "Vertex.hpp"
 #include "Shader.hpp"
 #include "Camera.hpp"
 #include "Constants.hpp"
+#include "Water.hpp"
+#include <thread>
 
-#pragma pack(push, 1)
-struct Vertex {
-  float position[3];
-  float normal[3];
-  float biome;
-};
-#pragma pack(pop)
-static_assert(sizeof(Vertex) == 7 * sizeof(float), "Vertex struct has unexpected padding");
 
 #define OK (0)
 #define ERR_GLFW (-1)
@@ -87,14 +82,14 @@ void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
   camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
-// static int target_fps = 30;
+static int target_fps = 60;
 int main(int argc, char* argv[]) {
-  // if (argc == 2) {
-  //   int res = sscanf(argv[1], "%d", &target_fps);
-  //   if (res != 1) {
-  //     printf("Invalid fps\n");
-  //   }
-  // }
+  if (argc == 2) {
+    int res = sscanf(argv[1], "%d", &target_fps);
+    if (res != 1) {
+      printf("Invalid fps\n");
+    }
+  }
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -123,6 +118,8 @@ int main(int argc, char* argv[]) {
   Shader terrain_shader("resources/terrain_vertex.glsl", "resources/terrain_fragment.glsl");
   Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
+  Shader water_shader("resources/water_vertex.glsl", "resources/water_fragment.glsl");
+  Shader pip_shader("resources/pip_vertex.glsl", "resources/pip_fragment.glsl");
 
   // Load terrain textures
   auto loadTexture = [](const char *path) -> unsigned int {
@@ -166,7 +163,7 @@ int main(int argc, char* argv[]) {
     return ERR_ALLOCATE;
   }
 
-  // Domain warp noise — distorts biome boundaries for organic shapes
+  // Domain warp noise - distorts biome boundaries for organic shapes
   FastNoiseLite biome_warp_x;
   biome_warp_x.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
   biome_warp_x.SetFractalType(FastNoiseLite::FractalType_FBm);
@@ -181,7 +178,7 @@ int main(int argc, char* argv[]) {
   biome_warp_z.SetFrequency(0.002f);
   biome_warp_z.SetSeed(137);
 
-  // Biome selector — low frequency so biome regions are large and gradual
+  // Biome selector - low frequency so biome regions are large and gradual
   FastNoiseLite biome;
   biome.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
   biome.SetFractalType(FastNoiseLite::FractalType_FBm);
@@ -190,7 +187,7 @@ int main(int argc, char* argv[]) {
   biome.SetFractalGain(0.5f);
   biome.SetFrequency(0.0003f);
 
-  // Plains — very low frequency, few octaves, almost no relief
+  // Plains - very low frequency, few octaves, almost no relief
   FastNoiseLite plains_noise;
   plains_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
   plains_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
@@ -207,7 +204,7 @@ int main(int argc, char* argv[]) {
   plains_erosion.SetFractalGain(0.4f);
   plains_erosion.SetFrequency(0.008f);
 
-  // Forest — medium frequency, moderate octaves, rolling hills
+  // Forest - medium frequency, moderate octaves, rolling hills
   FastNoiseLite forest_noise;
   forest_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
   forest_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
@@ -224,7 +221,7 @@ int main(int argc, char* argv[]) {
   forest_erosion.SetFractalGain(0.3f);
   forest_erosion.SetFrequency(0.0002f);
 
-  // Mountains — higher frequency, many octaves, high lacunarity for jagged peaks
+  // Mountains - higher frequency, many octaves, high lacunarity for jagged peaks
   FastNoiseLite mountain_noise;
   mountain_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
   mountain_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
@@ -260,7 +257,7 @@ int main(int argc, char* argv[]) {
       float warped_z = fvz + biome_warp_z.GetNoise(fvx, fvz) * warp_strength;
       float b = biome.GetNoise(warped_x, warped_z); // [-1, 1]: -1 = plains, 0 = forest, +1 = mountains
 
-      // Triangular basis weights — each biome peaks at a point and tapers linearly.
+      // Triangular basis weights - each biome peaks at a point and tapers linearly.
       // b=-1 → plains, b=0 → forest, b=+1 → mountains. Always sums to 1.
       float t = glm::clamp((b - 0.15f + 1.0f) * 0.5f, 0.0f, 1.0f); // bias toward plains/forest
       float w_plains   = glm::clamp(1.0f - t * 2.0f, 0.0f, 1.0f);
@@ -278,9 +275,9 @@ int main(int argc, char* argv[]) {
       squash *= (1.0f - w_mountain);
       height = glm::mix(height, SEA_LEVEL - 0.5f, squash);
 
-      vertices[base].position[0] = vx;
-      vertices[base].position[1] = height;
-      vertices[base].position[2] = vz;
+      vertices[base].position.x = vx;
+      vertices[base].position.y = height;
+      vertices[base].position.z = vz;
       vertices[base].biome = t;
       if (height > heightmap_max) heightmap_max = height;
       if (height < heightmap_min) heightmap_min = height;
@@ -298,72 +295,97 @@ int main(int argc, char* argv[]) {
     for (int ix = 0; ix < x - 1; ix++) {
       int base = (iz * (x - 1) + ix) * 2;
       // triangle 1
-      int tx = (iz * x) + ix;
-      int ty = ((iz + 1) * x) + ix;
-      int tz = ((iz + 1) * x) + ix + 1;
-      //if (iz < 5 && ix < 5) printf("iz %d ix %d tx %d ty %d tz %d\n", iz, ix, tx, ty, tz);
+      int tx = (iz * x) + ix; // top left
+      int ty = ((iz + 1) * x) + ix; // bottom left
+      int tz = ((iz + 1) * x) + ix + 1; // bottom right
+      // if (iz < 5 && ix < 5) printf("iz %d ix %d tx %d ty %d tz %d\n", iz, ix, tx, ty, tz);
       indices[base + 0][0] = tx;
       indices[base + 0][1] = ty;
       indices[base + 0][2] = tz;
       // triangle 1 face normal
       // there's probably some library function to do this stuff and it probably uses vector ops but i dunno how to do that
-      float *v0 = vertices[tx].position;
-      float *v1 = vertices[ty].position;
-      float *v2 = vertices[tz].position;
-      glm::vec3 p0(v0[0], v0[1], v0[2]);
-      glm::vec3 p1(v1[0], v1[1], v1[2]);
-      glm::vec3 p2(v2[0], v2[1], v2[2]);
-      glm::vec3 faceNormal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
-      vertices[tx].normal[0] += faceNormal.x;
-      vertices[tx].normal[1] += faceNormal.y;
-      vertices[tx].normal[2] += faceNormal.z;
-      vertices[ty].normal[0] += faceNormal.x;
-      vertices[ty].normal[1] += faceNormal.y;
-      vertices[ty].normal[2] += faceNormal.z;
-      vertices[tz].normal[0] += faceNormal.x;
-      vertices[tz].normal[1] += faceNormal.y;
-      vertices[tz].normal[2] += faceNormal.z;
+      glm::vec3 v0 = vertices[tx].position;
+      glm::vec3 v1 = vertices[ty].position;
+      glm::vec3 v2 = vertices[tz].position;
+      // Use swapped cross order so a flat XZ plane points +Y.
+      glm::vec3 faceNormal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+      vertices[tx].normal += faceNormal;
+      vertices[ty].normal += faceNormal;
+      vertices[tz].normal += faceNormal;
 
       // triangle 2
-      tx = (iz * x) + ix;
-      ty = (iz * x) + ix + 1;
-      tz = ((iz + 1) * x) + ix + 1;
-      indices[base + 1][0] = tx;
+      tx = (iz * x) + ix; // top left
+      ty = (iz * x) + ix + 1; // top right
+      tz = ((iz + 1) * x) + ix + 1; // bottom right
+      indices[base + 1][0] = tz;
       indices[base + 1][1] = ty;
-      indices[base + 1][2] = tz;
-      // triangle 2 face normal (negated to match triangle 1 direction)
-      v0 = vertices[tx].position;
+      indices[base + 1][2] = tx;
+      // triangle 2 face normal
+      v0 = vertices[tz].position;
       v1 = vertices[ty].position;
-      v2 = vertices[tz].position;
-      p0 = glm::vec3(v0[0], v0[1], v0[2]);
-      p1 = glm::vec3(v1[0], v1[1], v1[2]);
-      p2 = glm::vec3(v2[0], v2[1], v2[2]);
-      faceNormal = -glm::normalize(glm::cross(p1 - p0, p2 - p0));
-      vertices[tx].normal[0] += faceNormal.x;
-      vertices[tx].normal[1] += faceNormal.y;
-      vertices[tx].normal[2] += faceNormal.z;
-      vertices[ty].normal[0] += faceNormal.x;
-      vertices[ty].normal[1] += faceNormal.y;
-      vertices[ty].normal[2] += faceNormal.z;
-      vertices[tz].normal[0] += faceNormal.x;
-      vertices[tz].normal[1] += faceNormal.y;
-      vertices[tz].normal[2] += faceNormal.z;
+      v2 = vertices[tx].position;
+      faceNormal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+      vertices[tx].normal += faceNormal;
+      vertices[ty].normal += faceNormal;
+      vertices[tz].normal += faceNormal;
     }
   }
   printf("Created indices\n");
   // normalize normals
   for (int i = 0; i < y * x; i++) {
-    float *normal = vertices[i].normal;
-    float len = sqrtf((normal[0] * normal[0]) + (normal[1] * normal[1]) + (normal[2] * normal[2]));
-    normal[0] /= len;
-    normal[1] /= len;
-    normal[2] /= len;
+    if (glm::length(vertices[i].normal) > 0.0001f) vertices[i].normal = glm::normalize(vertices[i].normal);
+    else vertices[i].normal = glm::vec3(0, 1, 0);
   }
   printf("Normalized normals\n");
   printf("Sample normals: [0]=(%.3f,%.3f,%.3f) [512]=(%.3f,%.3f,%.3f) [1024]=(%.3f,%.3f,%.3f)\n",
     vertices[0].normal[0], vertices[0].normal[1], vertices[0].normal[2],
     vertices[512].normal[0], vertices[512].normal[1], vertices[512].normal[2],
     vertices[1024].normal[0], vertices[1024].normal[1], vertices[1024].normal[2]);
+
+  int source = 520800;
+  int amount = 5000;
+  printf("Starting water mesh generation (this can take a while)...\n");
+  int *waterBottom = (int *)malloc(amount * sizeof(int));
+  if (waterBottom == NULL) {
+    printf("Failed to allocate memory for waterBottom\n");
+    return ERR_ALLOCATE;
+  }
+  printf("...allocated space for water mesh\n");
+  printf("...now creating water bottom mesh\n");
+  createBottomMesh(&waterBottom, source, amount, (vertices), indices, (y - 1) * (x - 1) * 2, x*y);
+  printf("...calculated water bottom mesh\n");
+  printf("...now creating water bottom mesh vertex/index arrays\n");
+
+  // printtriangles(waterBottom, amount);
+
+  //get triangle indices and vertices for water bottom mesh
+
+  unsigned int (*waterBottomIndices)[3] = (unsigned int (*)[3])malloc((amount * 3) * sizeof(*waterBottomIndices));
+  // printf("sizeof waterBottomIndices: %d\n", int(sizeof(*waterBottomIndices)));
+  if (waterBottomIndices == NULL) {
+    printf("Failed to allocate memory for waterBottomIndices\n");
+    return ERR_ALLOCATE;
+  }
+  printf("...allocated space for waterBottomIndices\n");
+  Vertex *waterBottomVertices = (Vertex *)malloc((amount * 3) * sizeof(Vertex));
+  // printf("sizeof waterBottomVertices: %d\n", int(sizeof(Vertex)));
+  if (waterBottomVertices == NULL) {
+    printf("Failed to allocate memory for waterBottomVertices\n");
+    return ERR_ALLOCATE;
+  }
+  printf("...allocated space for waterBottomVertices\n");
+  for (int i = 0; i < amount; i++){
+    int triIndex = waterBottom[i];
+    // printf("W %d: %d\n", i, triIndex);
+    waterBottomIndices[i][0] = indices[triIndex][0];
+    waterBottomIndices[i][1] = indices[triIndex][1];
+    waterBottomIndices[i][2] = indices[triIndex][2];
+    waterBottomVertices[i*3 + 0] = vertices[indices[triIndex][0]];
+    waterBottomVertices[i*3 + 1] = vertices[indices[triIndex][1]];
+    waterBottomVertices[i*3 + 2] = vertices[indices[triIndex][2]];
+  }
+  printf("...filled in water bottom mesh data\n");
+  printf("Done with water mesh generation\n");
 
   /*
    * LOD plan:
@@ -379,6 +401,7 @@ int main(int argc, char* argv[]) {
     printf("Failed to allocate memory for lod_1_verts\n");
     return ERR_ALLOCATE;
   }
+  printf("Allocated lod_1_verts\n");
   for (int vz = 0; vz < lod_1_z; vz++) {
     for (int vx = 0; vx < lod_1_x; vx++) {
       int ox0 = vx * 2;
@@ -390,15 +413,15 @@ int main(int argc, char* argv[]) {
       if (ox1 > x - 1) ox1 = x - 1;
       if (oz1 > y - 1) oz1 = y - 1;
 
-      float *p00 = vertices[(oz0 * x) + ox0].position;
-      float *p10 = vertices[(oz0 * x) + ox1].position;
-      float *p01 = vertices[(oz1 * x) + ox0].position;
-      float *p11 = vertices[(oz1 * x) + ox1].position;
+      glm::vec3 p00 = vertices[(oz0 * x) + ox0].position;
+      glm::vec3 p10 = vertices[(oz0 * x) + ox1].position;
+      glm::vec3 p01 = vertices[(oz1 * x) + ox0].position;
+      glm::vec3 p11 = vertices[(oz1 * x) + ox1].position;
 
       int out = (vz * lod_1_x) + vx;
-      lod_1_verts[out].position[0] = p00[0];
-      lod_1_verts[out].position[1] = (p00[1] + p10[1] + p01[1] + p11[1]) / 4.0f;
-      lod_1_verts[out].position[2] = p00[2];
+      lod_1_verts[out].position.x = p00.x;
+      lod_1_verts[out].position.y = (p00.y + p10.y + p01.y + p11.y) / 4.0f;
+      lod_1_verts[out].position.z = p00.z;
       lod_1_verts[out].biome = vertices[(oz0 * x) + ox0].biome;
     }
   }
@@ -419,63 +442,39 @@ int main(int argc, char* argv[]) {
       lod_1_indices[base + 0][2] = tz;
       // triangle 1 face normal
       // there's probably some library function to do this stuff and it probably uses vector ops but i dunno how to do that
-      float *v0 = lod_1_verts[tx].position;
-      float *v1 = lod_1_verts[ty].position;
-      float *v2 = lod_1_verts[tz].position;
-      glm::vec3 p0(v0[0], v0[1], v0[2]);
-      glm::vec3 p1(v1[0], v1[1], v1[2]);
-      glm::vec3 p2(v2[0], v2[1], v2[2]);
-      glm::vec3 faceNormal = glm::normalize(glm::cross(p1 - p0, p2 - p0));
-      lod_1_verts[tx].normal[0] += faceNormal.x;
-      lod_1_verts[tx].normal[1] += faceNormal.y;
-      lod_1_verts[tx].normal[2] += faceNormal.z;
-      lod_1_verts[ty].normal[0] += faceNormal.x;
-      lod_1_verts[ty].normal[1] += faceNormal.y;
-      lod_1_verts[ty].normal[2] += faceNormal.z;
-      lod_1_verts[tz].normal[0] += faceNormal.x;
-      lod_1_verts[tz].normal[1] += faceNormal.y;
-      lod_1_verts[tz].normal[2] += faceNormal.z;
+      glm::vec3 v0 = lod_1_verts[tx].position;
+      glm::vec3 v1 = lod_1_verts[ty].position;
+      glm::vec3 v2 = lod_1_verts[tz].position;
+      // Use swapped cross order so a flat XZ plane points +Y.
+      glm::vec3 faceNormal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+      lod_1_verts[tx].normal += faceNormal;
+      lod_1_verts[ty].normal += faceNormal;
+      lod_1_verts[tz].normal += faceNormal;
 
       // triangle 2
       tx = (iz * lod_1_x) + ix;
       ty = (iz * lod_1_x) + ix + 1;
       tz = ((iz + 1) * lod_1_x) + ix + 1;
-      lod_1_indices[base + 1][0] = tx;
+      lod_1_indices[base + 1][0] = tz;
       lod_1_indices[base + 1][1] = ty;
-      lod_1_indices[base + 1][2] = tz;
-      // triangle 2 face normal (negated to match triangle 1 direction)
-      v0 = lod_1_verts[tx].position;
+      lod_1_indices[base + 1][2] = tx;
+      // triangle 2 face normal
+      v0 = lod_1_verts[tz].position;
       v1 = lod_1_verts[ty].position;
-      v2 = lod_1_verts[tz].position;
-      p0 = glm::vec3(v0[0], v0[1], v0[2]);
-      p1 = glm::vec3(v1[0], v1[1], v1[2]);
-      p2 = glm::vec3(v2[0], v2[1], v2[2]);
-      faceNormal = -glm::normalize(glm::cross(p1 - p0, p2 - p0));
-      lod_1_verts[tx].normal[0] += faceNormal.x;
-      lod_1_verts[tx].normal[1] += faceNormal.y;
-      lod_1_verts[tx].normal[2] += faceNormal.z;
-      lod_1_verts[ty].normal[0] += faceNormal.x;
-      lod_1_verts[ty].normal[1] += faceNormal.y;
-      lod_1_verts[ty].normal[2] += faceNormal.z;
-      lod_1_verts[tz].normal[0] += faceNormal.x;
-      lod_1_verts[tz].normal[1] += faceNormal.y;
-      lod_1_verts[tz].normal[2] += faceNormal.z;
+      v2 = lod_1_verts[tx].position;
+      faceNormal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+      lod_1_verts[tx].normal += faceNormal;
+      lod_1_verts[ty].normal += faceNormal;
+      lod_1_verts[tz].normal += faceNormal;
     }
   }
   // lod 1 normalize normals
   for (int i = 0; i < lod_1_z * lod_1_x; i++) {
-    float *normal = lod_1_verts[i].normal;
-    float len = sqrtf((normal[0] * normal[0]) + (normal[1] * normal[1]) + (normal[2] * normal[2]));
-    if (len > 0.00001f) {
-      normal[0] /= len;
-      normal[1] /= len;
-      normal[2] /= len;
-    } else {
-      normal[0] = 0.0f;
-      normal[1] = 1.0f;
-      normal[2] = 0.0f;
-    }
+    if (glm::length(lod_1_verts[i].normal) > 0.0001f) lod_1_verts[i].normal = glm::normalize(lod_1_verts[i].normal);
+    else lod_1_verts[i].normal = glm::vec3(0, 1, 0);
+    
   }
+  printf("Generated LOD mesh\n");
 
   unsigned int VAO, VBO, EBO;
   glGenBuffers(1, &VBO);
@@ -497,6 +496,29 @@ int main(int argc, char* argv[]) {
   glEnableVertexAttribArray(1);
   glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, biome));
   glEnableVertexAttribArray(2);
+  printf("Created terrain VAO\n");
+
+
+  // water bottom mesh (non-functional)
+
+  unsigned int VAO_WATER, VBO_WATER, EBO_WATER;
+  glGenBuffers(1, &VBO_WATER);
+  glGenBuffers(1, &EBO_WATER);
+  glGenVertexArrays(1, &VAO_WATER);
+
+  glBindVertexArray(VAO_WATER);
+
+  // 2. copy our vertices array in a vertex buffer for OpenGL to use
+  glBindBuffer(GL_ARRAY_BUFFER, VBO_WATER);
+  glBufferData(GL_ARRAY_BUFFER, (y * x) * sizeof(*vertices), vertices, GL_STATIC_DRAW);
+  // 3. copy our index array in a element buffer for OpenGL to use
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_WATER);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, amount * 3 * sizeof(*waterBottomIndices), waterBottomIndices, GL_STATIC_DRAW);
+  // 4. then set the vertex attributes pointers
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, position));
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
+  glEnableVertexAttribArray(1);
 
   unsigned int VAO_LOD, VBO_LOD, EBO_LOD;
   glGenBuffers(1, &VBO_LOD);
@@ -562,7 +584,7 @@ int main(int argc, char* argv[]) {
   float fogLength = 25.0f;
 
   // sun position
-  glm::vec3 lightPos(200, 100, 0);
+  glm::vec3 lightPos(200, 50, 0);
 
   unsigned int terrain_tex;
   glGenTextures(1, &terrain_tex);
@@ -604,36 +626,45 @@ int main(int argc, char* argv[]) {
   glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mask_rbo);
 
-  // unsigned int terrain_lod_tex;
-  // glGenTextures(1, &terrain_lod_tex);
-  // glBindTexture(GL_TEXTURE_2D, terrain_lod_tex);
-  // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, window_width, window_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  unsigned int terrain_lod_tex;
+  glGenTextures(1, &terrain_lod_tex);
+  glBindTexture(GL_TEXTURE_2D, terrain_lod_tex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, window_width, window_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-  // unsigned int terrain_lod_fbo;
-  // glGenFramebuffers(1, &terrain_lod_fbo);
-  // glBindFramebuffer(GL_FRAMEBUFFER, terrain_lod_fbo);
-  // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, terrain_lod_tex, 0);
+  unsigned int terrain_lod_fbo;
+  glGenFramebuffers(1, &terrain_lod_fbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, terrain_lod_fbo);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, terrain_lod_tex, 0);
 
-  // unsigned int terrain_lod_rbo;
-  // glGenRenderbuffers(1, &terrain_lod_rbo);
-  // glBindRenderbuffer(GL_RENDERBUFFER, terrain_lod_rbo);
-  // glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
-  // glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, terrain_lod_rbo);
+  unsigned int terrain_lod_rbo;
+  glGenRenderbuffers(1, &terrain_lod_rbo);
+  glBindRenderbuffer(GL_RENDERBUFFER, terrain_lod_rbo);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, terrain_lod_rbo);
 
   glm::mat4 normalMatrix = glm::transpose(glm::inverse(model));
   unsigned long frameCount = 1;
-  // float target_frame_time = 1.0f / target_fps;
+  double target_frame_time = ((double) 1.0f) / target_fps;
   bool grounded = false;
   bool fogKeyDown = false;
   bool enableFog = true;
+  bool godraysKeyDown = false;
+  bool enableGodrays = true;
+  bool pipKeyDown = false;
+  bool enablePip = true;
+  bool noclipKeyDown = false;
+  bool enableNoclip = false;
   while (!glfwWindowShouldClose(window)) {
-    float currentFrame = static_cast<float>(glfwGetTime());
+    double currentFrame = glfwGetTime();
     deltaTime = currentFrame - lastFrame;
-    // if (deltaTime < target_frame_time) usleep();
+    if (deltaTime < target_frame_time) {
+      long long sleepTime = (long long) (1000000 * (target_frame_time - deltaTime));
+      std::this_thread::sleep_for(std::chrono::microseconds(sleepTime));
+    }
     lastFrame = currentFrame;
     // process input
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, true);
@@ -646,33 +677,57 @@ int main(int argc, char* argv[]) {
     if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS && !fogKeyDown) {
       enableFog = !enableFog;
       fogKeyDown = true;
+      printf("Fog toggled %d\n", enableFog);
     } else if (glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
       fogKeyDown = false;
     }
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS && !godraysKeyDown) {
+      enableGodrays = !enableGodrays;
+      godraysKeyDown = true;
+      printf("Godrays toggled %d\n", enableGodrays);
+    } else if (glfwGetKey(window, GLFW_KEY_G) == GLFW_RELEASE) {
+      godraysKeyDown = false;
+    }
+    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && !pipKeyDown) {
+      enablePip = !enablePip;
+      pipKeyDown = true;
+      printf("PiP toggled %d\n", enablePip);
+    } else if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
+      pipKeyDown = false;
+    }
+    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS && !noclipKeyDown) {
+      enableNoclip = !enableNoclip;
+      noclipKeyDown = true;
+      printf("Noclip toggled %d\n", enableNoclip);
+    } else if (glfwGetKey(window, GLFW_KEY_N) == GLFW_RELEASE) {
+      noclipKeyDown = false;
+    }
 
     // Process "collisions" but it's really just checking terrain heights
-    int x_scaled_floor = glm::floor(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
-    int x_scaled_ceil = glm::ceil(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
-    int z_scaled_floor = glm::floor(camera.Position.z * TERRAIN_SCALE_RECIPROCAL);
-    int z_scaled_ceil = glm::ceil(camera.Position.z * TERRAIN_SCALE_RECIPROCAL);
-    int x_offset_floor = x_scaled_floor - OFFSET(x_scaled_floor);
-    int x_offset_ceil = x_scaled_floor + OFFSET(x_scaled_floor);
-    int z_offset_floor = z_scaled_floor - OFFSET(z_scaled_floor);
-    int z_offset_ceil = z_scaled_floor + OFFSET(z_scaled_floor);
-    float max_height = 0;
-    if (!((x_offset_floor < 0 || x_offset_ceil > x) || (z_offset_floor < 0 || z_offset_ceil > y))) {
-      float neg_neg_height = vertices[(z_offset_floor * x) + x_offset_floor].position[1];
-      float neg_pos_height = vertices[(z_offset_ceil * x) + x_offset_floor].position[1];
-      float pos_pos_height = vertices[(z_offset_ceil * x) + x_offset_ceil].position[1];
-      float pos_neg_height = vertices[(z_offset_floor * x) + x_offset_ceil].position[1];
-      if (neg_neg_height > max_height) max_height = neg_neg_height;
-      if (neg_pos_height > max_height) max_height = neg_pos_height;
-      if (pos_pos_height > max_height) max_height = pos_pos_height;
-      if (pos_neg_height > max_height) max_height = pos_neg_height;
+    if (!enableNoclip) {
+      int x_scaled_floor = glm::floor(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
+      int x_scaled_ceil = glm::ceil(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
+      int z_scaled_floor = glm::floor(camera.Position.z * TERRAIN_SCALE_RECIPROCAL);
+      int z_scaled_ceil = glm::ceil(camera.Position.z * TERRAIN_SCALE_RECIPROCAL);
+      int x_offset_floor = x_scaled_floor - OFFSET(x_scaled_floor);
+      int x_offset_ceil = x_scaled_floor + OFFSET(x_scaled_floor);
+      int z_offset_floor = z_scaled_floor - OFFSET(z_scaled_floor);
+      int z_offset_ceil = z_scaled_floor + OFFSET(z_scaled_floor);
+      float max_height = 0;
+      if (!((x_offset_floor < 0 || x_offset_ceil > x) || (z_offset_floor < 0 || z_offset_ceil > y))) {
+        float neg_neg_height = vertices[(z_offset_floor * x) + x_offset_floor].position[1];
+        float neg_pos_height = vertices[(z_offset_ceil * x) + x_offset_floor].position[1];
+        float pos_pos_height = vertices[(z_offset_ceil * x) + x_offset_ceil].position[1];
+        float pos_neg_height = vertices[(z_offset_floor * x) + x_offset_ceil].position[1];
+        if (neg_neg_height > max_height) max_height = neg_neg_height;
+        if (neg_pos_height > max_height) max_height = neg_pos_height;
+        if (pos_pos_height > max_height) max_height = pos_pos_height;
+        if (pos_neg_height > max_height) max_height = pos_neg_height;
+      }
+      max_height += 0.5f;
+      if (camera.Position.y > max_height && glfwGetKey(window, GLFW_KEY_SPACE) != GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
+      if (camera.Position.y < max_height) camera.Position.y = max_height;
     }
-    max_height += 0.5f;
-    if (camera.Position.y > max_height && glfwGetKey(window, GLFW_KEY_SPACE) != GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
-    if (camera.Position.y < max_height) camera.Position.y = max_height;
 
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.SetSpeed(10.0f);
     else camera.SetSpeed(2.5f);
@@ -717,6 +772,35 @@ int main(int argc, char* argv[]) {
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
 
+    // printf("Rendering water\n");
+    water_shader.use();
+    // printf("This worked\n");
+    water_shader.setMat4("model", glm::value_ptr(model));
+    // printf("Set water model matrix\n");
+    water_shader.setMat4("view", glm::value_ptr(view));
+    // printf("Set water view matrix\n");
+    water_shader.setMat4("projection", glm::value_ptr(projection));
+    // printf("Set water projection matrix\n");
+    water_shader.setVec3("cameraPos", camera.Position);
+    // printf("Set water camera position\n");
+    water_shader.setVec4("clearColor", clearColor);
+    // printf("Set water clear color\n");
+    water_shader.setFloat("fogStart", fogStart);
+    // printf("Set water fog start\n");
+    water_shader.setFloat("fogLength", fogLength);
+    // printf("Set water fog length\n");
+    water_shader.setFloat("seaLevel", SEA_LEVEL);
+    // printf("Set water sea level\n");
+    water_shader.setVec3("lightPos", lightPos);
+    // printf("Set water light position\n");
+    water_shader.setBool("enableFog", enableFog);
+    // printf("Set water enable fog\n");
+
+    glDepthFunc(GL_LEQUAL);
+    glBindVertexArray(VAO_WATER);
+    glDrawElements(GL_TRIANGLES, amount * 3, GL_UNSIGNED_INT, 0);
+    glDepthFunc(GL_LESS);
+
     // render occlusion mask
     // always render occlusion mask with regular terrain
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -752,7 +836,7 @@ int main(int argc, char* argv[]) {
     godray_shader.use();
     godray_shader.setUnsignedInt("screenWidth", window_width);
     godray_shader.setUnsignedInt("screenHeight", window_height);
-    // godray_shader.setMat4("model", glm::value_ptr(model));
+    godray_shader.setMat4("model", glm::value_ptr(model));
     godray_shader.setMat4("view", glm::value_ptr(view));
     godray_shader.setMat4("projection", glm::value_ptr(projection));
     godray_shader.setVec4("clearColor", clearColor);
@@ -763,7 +847,24 @@ int main(int argc, char* argv[]) {
     godray_shader.setFloat("fogLength", fogLength);
     godray_shader.setVec3("cameraPos", camera.Position);
     godray_shader.setBool("enableFog", enableFog);
+    godray_shader.setBool("enableGodrays", enableGodrays);
     glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    // render pip
+    if (enablePip) {
+      int vp_x = (window_width * 2) / 3;
+      int vp_y = (window_height * 2) / 3;
+      int vp_width = window_width - vp_x;
+      int vp_height = window_height - vp_y;
+      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+      glViewport(vp_x, vp_y, vp_width, vp_height);
+      pip_shader.use();
+      pip_shader.setUnsignedInt("screenWidth", window_width);
+      pip_shader.setUnsignedInt("screenHeight", window_height);
+      pip_shader.setInt("tex", 1);
+      glBindVertexArray(screen_vao);
+      glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
 
     // done rendering
     glBindVertexArray(0);
