@@ -10,6 +10,9 @@
 
 #include "FastNoiseLite.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #include "Vertex.hpp"
 #include "Shader.hpp"
 #include "Camera.hpp"
@@ -118,6 +121,38 @@ int main(int argc, char* argv[]) {
   Shader water_shader("resources/water_vertex.glsl", "resources/water_fragment.glsl");
   Shader pip_shader("resources/pip_vertex.glsl", "resources/pip_fragment.glsl");
 
+  // Load terrain textures
+  auto loadTexture = [](const char *path) -> unsigned int {
+    unsigned int tex;
+    glGenTextures(1, &tex);
+    glBindTexture(GL_TEXTURE_2D, tex);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    int w, h, channels;
+    stbi_set_flip_vertically_on_load(false);
+    unsigned char *data = stbi_load(path, &w, &h, &channels, 3);
+    if (data) {
+      GLenum fmt = GL_RGB;
+      glTexImage2D(GL_TEXTURE_2D, 0, fmt, w, h, 0, fmt, GL_UNSIGNED_BYTE, data);
+      glGenerateMipmap(GL_TEXTURE_2D);
+      printf("Loaded texture: %s (%dx%d, %d channels)\n", path, w, h, channels);
+    } else {
+      printf("Failed to load texture: %s\n", path);
+    }
+    stbi_image_free(data);
+    return tex;
+  };
+  unsigned int grassTex = loadTexture("resources/Grass.png");
+  unsigned int rockTex  = loadTexture("resources/Stone.jpg");
+  unsigned int snowTex  = loadTexture("resources/Snow2.jpg");
+
+  terrain_shader.use();
+  terrain_shader.setInt("grassTex", 0);
+  terrain_shader.setInt("rockTex", 1);
+  terrain_shader.setInt("snowTex", 2);
+
   //int x = 512, y = 512;
   int x = 1024, y = 1024;
 
@@ -128,16 +163,31 @@ int main(int argc, char* argv[]) {
     return ERR_ALLOCATE;
   }
 
-  // Biome selector — low frequency so biome regions are large and gradual
+  // Domain warp noise - distorts biome boundaries for organic shapes
+  FastNoiseLite biome_warp_x;
+  biome_warp_x.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  biome_warp_x.SetFractalType(FastNoiseLite::FractalType_FBm);
+  biome_warp_x.SetFractalOctaves(3);
+  biome_warp_x.SetFrequency(0.002f);
+  biome_warp_x.SetSeed(42);
+
+  FastNoiseLite biome_warp_z;
+  biome_warp_z.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
+  biome_warp_z.SetFractalType(FastNoiseLite::FractalType_FBm);
+  biome_warp_z.SetFractalOctaves(3);
+  biome_warp_z.SetFrequency(0.002f);
+  biome_warp_z.SetSeed(137);
+
+  // Biome selector - low frequency so biome regions are large and gradual
   FastNoiseLite biome;
   biome.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
   biome.SetFractalType(FastNoiseLite::FractalType_FBm);
-  biome.SetFractalOctaves(2);
+  biome.SetFractalOctaves(4);
   biome.SetFractalLacunarity(2.0f);
   biome.SetFractalGain(0.5f);
-  biome.SetFrequency(0.003f);
+  biome.SetFrequency(0.0003f);
 
-  // Plains — very low frequency, few octaves, almost no relief
+  // Plains - very low frequency, few octaves, almost no relief
   FastNoiseLite plains_noise;
   plains_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
   plains_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
@@ -154,7 +204,7 @@ int main(int argc, char* argv[]) {
   plains_erosion.SetFractalGain(0.4f);
   plains_erosion.SetFrequency(0.008f);
 
-  // Forest — medium frequency, moderate octaves, rolling hills
+  // Forest - medium frequency, moderate octaves, rolling hills
   FastNoiseLite forest_noise;
   forest_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
   forest_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
@@ -171,7 +221,7 @@ int main(int argc, char* argv[]) {
   forest_erosion.SetFractalGain(0.3f);
   forest_erosion.SetFrequency(0.0002f);
 
-  // Mountains — higher frequency, many octaves, high lacunarity for jagged peaks
+  // Mountains - higher frequency, many octaves, high lacunarity for jagged peaks
   FastNoiseLite mountain_noise;
   mountain_noise.SetNoiseType(FastNoiseLite::NoiseType_OpenSimplex2);
   mountain_noise.SetFractalType(FastNoiseLite::FractalType_FBm);
@@ -202,29 +252,33 @@ int main(int argc, char* argv[]) {
     for (int vx = 0; vx < x; vx++) {
       int base = (vz * x) + vx;
       float fvx = (float)vx, fvz = (float)vz;
-      float b = biome.GetNoise(fvx, fvz); // [-1, 1]: -1 = plains, 0 = forest, +1 = mountains
+      float warp_strength = 80.0f;
+      float warped_x = fvx + biome_warp_x.GetNoise(fvx, fvz) * warp_strength;
+      float warped_z = fvz + biome_warp_z.GetNoise(fvx, fvz) * warp_strength;
+      float b = biome.GetNoise(warped_x, warped_z); // [-1, 1]: -1 = plains, 0 = forest, +1 = mountains
 
-      // Triangular basis weights — each biome peaks at a point and tapers linearly.
+      // Triangular basis weights - each biome peaks at a point and tapers linearly.
       // b=-1 → plains, b=0 → forest, b=+1 → mountains. Always sums to 1.
-      float t = (b + 1.0f) * 0.5f; // remap [-1,1] to [0,1]
+      float t = glm::clamp((b - 0.15f + 1.0f) * 0.5f, 0.0f, 1.0f); // bias toward plains/forest
       float w_plains   = glm::clamp(1.0f - t * 2.0f, 0.0f, 1.0f);
       float w_mountain = glm::clamp(t * 2.0f - 1.0f, 0.0f, 1.0f);
       float w_forest   = 1.0f - w_plains - w_mountain;
 
       float h_plains   = (plains_noise.GetNoise(fvx, fvz)   - plains_erosion.GetNoise(fvx, fvz)   * 0.15f + 1.0f) * 2.5f;
       float h_forest   = (forest_noise.GetNoise(fvx, fvz)   - forest_erosion.GetNoise(fvx, fvz)   * 0.20f + 1.0f) * 4.5f;
-      float h_mountain = (mountain_noise.GetNoise(fvx, fvz) - mountain_erosion.GetNoise(fvx, fvz) * 0.35f + 1.0f) * 8.0f;
+      float h_mountain = (mountain_noise.GetNoise(fvx, fvz) - mountain_erosion.GetNoise(fvx, fvz) * 0.35f + 1.0f) * 16.0f;
 
       float height = w_plains * h_plains + w_forest * h_forest + w_mountain * h_mountain;
 
       // Flatten terrain below sea level, but skip mountain zones so they keep full relief.
-      t = 1.0f - glm::smoothstep(SEA_LEVEL - 3.0f, SEA_LEVEL, height);
-      t *= (1.0f - w_mountain);
-      height = glm::mix(height, SEA_LEVEL - 0.5f, t);
+      float squash = 1.0f - glm::smoothstep(SEA_LEVEL - 3.0f, SEA_LEVEL, height);
+      squash *= (1.0f - w_mountain);
+      height = glm::mix(height, SEA_LEVEL - 0.5f, squash);
 
       vertices[base].position.x = vx;
       vertices[base].position.y = height;
       vertices[base].position.z = vz;
+      vertices[base].biome = t;
       if (height > heightmap_max) heightmap_max = height;
       if (height < heightmap_min) heightmap_min = height;
     }
@@ -244,7 +298,7 @@ int main(int argc, char* argv[]) {
       int tx = (iz * x) + ix; // top left
       int ty = ((iz + 1) * x) + ix; // bottom left
       int tz = ((iz + 1) * x) + ix + 1; // bottom right
-      if (iz < 5 && ix < 5) printf("iz %d ix %d tx %d ty %d tz %d\n", iz, ix, tx, ty, tz);
+      // if (iz < 5 && ix < 5) printf("iz %d ix %d tx %d ty %d tz %d\n", iz, ix, tx, ty, tz);
       indices[base + 0][0] = tx;
       indices[base + 0][1] = ty;
       indices[base + 0][2] = tz;
@@ -283,35 +337,43 @@ int main(int argc, char* argv[]) {
     else vertices[i].normal = glm::vec3(0, 1, 0);
   }
   printf("Normalized normals\n");
+  printf("Sample normals: [0]=(%.3f,%.3f,%.3f) [512]=(%.3f,%.3f,%.3f) [1024]=(%.3f,%.3f,%.3f)\n",
+    vertices[0].normal[0], vertices[0].normal[1], vertices[0].normal[2],
+    vertices[512].normal[0], vertices[512].normal[1], vertices[512].normal[2],
+    vertices[1024].normal[0], vertices[1024].normal[1], vertices[1024].normal[2]);
 
-  int source = 524800;
-  int amount = 50000;
+  int source = 544800;
+  int amount = 5000;
+  printf("Starting water mesh generation (this can take a while)...\n");
   int *waterBottom = (int *)malloc(amount * sizeof(int));
   if (waterBottom == NULL) {
     printf("Failed to allocate memory for waterBottom\n");
     return ERR_ALLOCATE;
   }
+  printf("...allocated space for water mesh\n");
+  printf("...now creating water bottom mesh\n");
   createBottomMesh(&waterBottom, source, amount, (vertices), indices, (y - 1) * (x - 1) * 2, x*y);
-  printf("Created water bottom mesh\n");
+  printf("...calculated water bottom mesh\n");
+  printf("...now creating water bottom mesh vertex/index arrays\n");
 
   // printtriangles(waterBottom, amount);
 
   //get triangle indices and vertices for water bottom mesh
 
   unsigned int (*waterBottomIndices)[3] = (unsigned int (*)[3])malloc((amount * 3) * sizeof(*waterBottomIndices));
-  printf("sizeof waterBottomIndices: %d\n", int(sizeof(*waterBottomIndices)));
+  // printf("sizeof waterBottomIndices: %d\n", int(sizeof(*waterBottomIndices)));
   if (waterBottomIndices == NULL) {
     printf("Failed to allocate memory for waterBottomIndices\n");
     return ERR_ALLOCATE;
   }
-  printf("Allocated waterBottomIndices\n");
+  printf("...allocated space for waterBottomIndices\n");
   Vertex *waterBottomVertices = (Vertex *)malloc((amount * 3) * sizeof(Vertex));
-  printf("sizeof waterBottomVertices: %d\n", int(sizeof(Vertex)));
+  // printf("sizeof waterBottomVertices: %d\n", int(sizeof(Vertex)));
   if (waterBottomVertices == NULL) {
     printf("Failed to allocate memory for waterBottomVertices\n");
     return ERR_ALLOCATE;
   }
-  printf("Allocated waterBottomVertices\n");
+  printf("...allocated space for waterBottomVertices\n");
   for (int i = 0; i < amount; i++){
     int triIndex = waterBottom[i];
     // printf("W %d: %d\n", i, triIndex);
@@ -322,7 +384,8 @@ int main(int argc, char* argv[]) {
     waterBottomVertices[i*3 + 1] = vertices[indices[triIndex][1]];
     waterBottomVertices[i*3 + 2] = vertices[indices[triIndex][2]];
   }
-  printf("Copied water bottom mesh data\n");
+  printf("...filled in water bottom mesh data\n");
+  printf("Done with water mesh generation\n");
 
   /*
    * LOD plan:
@@ -359,6 +422,7 @@ int main(int argc, char* argv[]) {
       lod_1_verts[out].position.x = p00.x;
       lod_1_verts[out].position.y = (p00.y + p10.y + p01.y + p11.y) / 4.0f;
       lod_1_verts[out].position.z = p00.z;
+      lod_1_verts[out].biome = vertices[(oz0 * x) + ox0].biome;
     }
   }
   unsigned int (*lod_1_indices)[3] = (unsigned int (*)[3])malloc(((lod_1_x - 1) * (lod_1_z - 1) * 2) * sizeof(*lod_1_indices));
@@ -430,6 +494,8 @@ int main(int argc, char* argv[]) {
   glEnableVertexAttribArray(0);
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
   glEnableVertexAttribArray(1);
+  glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, biome));
+  glEnableVertexAttribArray(2);
   printf("Created terrain VAO\n");
 
 
@@ -468,10 +534,12 @@ int main(int argc, char* argv[]) {
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_LOD);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, ((lod_1_z - 1) * (lod_1_x - 1) * 2) * sizeof(*lod_1_indices), lod_1_indices, GL_STATIC_DRAW);
   // 4. then set the vertex attributes pointers
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, position));
   glEnableVertexAttribArray(0);
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)(3 * sizeof(float)));
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
   glEnableVertexAttribArray(1);
+  glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, biome));
+  glEnableVertexAttribArray(2);
 
   // screen effects setup begin
   float fullscreen_vertices[] = {
@@ -681,8 +749,16 @@ int main(int argc, char* argv[]) {
     terrain_shader.setFloat("fogStart", fogStart);
     terrain_shader.setFloat("fogLength", fogLength);
     terrain_shader.setFloat("seaLevel", SEA_LEVEL);
+    terrain_shader.setFloat("terrainScale", TERRAIN_SCALE);
     terrain_shader.setVec3("lightPos", lightPos);
     terrain_shader.setBool("enableFog", enableFog);
+
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, grassTex);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, rockTex);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, snowTex);
 
     // render far
     if (!enableFog) {
