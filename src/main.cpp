@@ -13,6 +13,7 @@
 #include "Shader.hpp"
 #include "Camera.hpp"
 #include "Constants.hpp"
+#include <thread>
 
 #pragma pack(push, 1)
 struct Vertex {
@@ -83,14 +84,14 @@ void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
   camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
-// static int target_fps = 30;
+static int target_fps = 60;
 int main(int argc, char* argv[]) {
-  // if (argc == 2) {
-  //   int res = sscanf(argv[1], "%d", &target_fps);
-  //   if (res != 1) {
-  //     printf("Invalid fps\n");
-  //   }
-  // }
+  if (argc == 2) {
+    int res = sscanf(argv[1], "%d", &target_fps);
+    if (res != 1) {
+      printf("Invalid fps\n");
+    }
+  }
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -454,7 +455,7 @@ int main(int argc, char* argv[]) {
   float fogLength = 25.0f;
 
   // sun position
-  glm::vec3 lightPos(200, 100, 0);
+  glm::vec3 lightPos(200, 50, 0);
 
   unsigned int terrain_tex;
   glGenTextures(1, &terrain_tex);
@@ -518,7 +519,7 @@ int main(int argc, char* argv[]) {
 
   glm::mat4 normalMatrix = glm::transpose(glm::inverse(model));
   unsigned long frameCount = 1;
-  // float target_frame_time = 1.0f / target_fps;
+  double target_frame_time = ((double) 1.0f) / target_fps;
   bool grounded = false;
   bool fogKeyDown = false;
   bool enableFog = true;
@@ -529,9 +530,12 @@ int main(int argc, char* argv[]) {
   bool noclipKeyDown = false;
   bool enableNoclip = false;
   while (!glfwWindowShouldClose(window)) {
-    float currentFrame = static_cast<float>(glfwGetTime());
+    double currentFrame = glfwGetTime();
     deltaTime = currentFrame - lastFrame;
-    // if (deltaTime < target_frame_time) usleep();
+    if (deltaTime < target_frame_time) {
+      long long sleepTime = (long long) (1000000 * (target_frame_time - deltaTime));
+      std::this_thread::sleep_for(std::chrono::microseconds(sleepTime));
+    }
     lastFrame = currentFrame;
     // process input
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, true);
