@@ -8,8 +8,9 @@ in float vHeight;
 in float vBiome;
 
 uniform vec3 cameraPos;
-uniform vec4 clearColor;
+uniform vec3 lightPos;
 
+uniform vec4 clearColor;
 uniform bool enableFog;
 uniform float fogStart;
 uniform float fogLength;
@@ -20,7 +21,6 @@ uniform bool near;
 uniform sampler2D grassTex;
 uniform sampler2D rockTex;
 uniform sampler2D snowTex;
-uniform vec3 lightPos;
 
 const float specularPower = 32;
 const float specStrength = 0.2;
@@ -87,5 +87,5 @@ void main() {
             discard;
         }
     }
-    FragColor = vec4(outColor, gl_FragCoord.z);
+    FragColor = vec4(outColor, 1);
 }

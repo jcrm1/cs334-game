@@ -16,6 +16,8 @@ uniform mat4 normalMatrix;
 
 void main()
 {
+   // vec3 myPos = aPos;
+   // myPos += vec3(0, 0.15 * abs(sin((myPos.x / 2) + (myPos.z / ))), 0);
    gl_Position = projection * view * model * vec4(aPos, 1.0);
    vPos = vec3(model * vec4(aPos, 1.0));
    vHeight = aPos.y;

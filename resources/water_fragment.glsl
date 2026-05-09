@@ -6,25 +6,42 @@ in vec3 vColor;
 in float vHeight;
 
 uniform vec3 cameraPos;
-uniform vec4 clearColor;
+uniform vec3 lightPos;
 
+uniform vec4 clearColor;
 uniform bool enableFog;
 uniform float fogStart;
 uniform float fogLength;
 uniform float seaLevel;
 uniform bool near;
 
-const vec3 lightPos = vec3(200.0, 200.0, 0.0);
+const float specularPower = 80;
+const float specStrength = 0.3;
+const vec3 specularColor = vec3(1,1,1);
+const float ambientScalar = 0.7;
 
 void main() {
-    vec3 outColor = vec3(1.0,0.0,0.0);
-    if (vHeight < seaLevel) {
-        float depth = (seaLevel - vHeight) / seaLevel;
-        // outColor = vec3(0.0, 0.3 - depth * 0.2, clamp(0.8 - depth * 0.3, 0.0, 1.0));
-        outColor = vColor;
-    } else {
-        outColor = vColor;
-    }
+    vec3 vNormal = vec3(0,1,0);
+    vec3 outColor = vColor;
+    float mySpecularPower = specularPower;
+    float mySpecStrength = specStrength;
+    float fractY = fract(vPos.y);
+    // if (fractY >= 0.25 && fractY <= 0.75) {
+    vNormal = normalize(vNormal + vec3(0.025 * cos(((8 * vPos.x) + (12 * vPos.z))),sin(vPos.y),0.05 * sin(4 * ((4 * vPos.x) + (6 * vPos.z)))));
+    // mySpecularPower += 4 * sin(length(normalize(vec2(5 * vPos.x, 3 * vPos.z))));
+    // mySpecStrength += 0.1 * sin(length(normalize(vec2(4 * vPos.x - 4, 2 * vPos.z -1))));
+    // }
+    // apply phong shading based on info at https://mrl.cs.nyu.edu/~perlin/courses/fall2005ugrad/phong.html
+    vec3 normal = normalize(vNormal);
+    vec3 lightDir = normalize(lightPos - vPos);
+    vec3 cameraDir = normalize(cameraPos - vPos);
+    
+    vec3 ambient = outColor * ambientScalar;
+    float nl = max(0, dot(normal, lightDir));
+    vec3 diffuse = outColor * nl;
+    vec3 specular = specularColor * pow(max(0, dot(cameraDir, reflect(-1 * lightDir, normal))), mySpecularPower) * mySpecStrength;
+    outColor = ambient + diffuse + specular;
+
     float dist = distance(vPos, cameraPos);
     if (enableFog) {
         // fog mode
@@ -46,27 +63,6 @@ void main() {
         // gives a bit of extra margin with (fogLength / 10.0) to remove the seam in the world
         // do nothing
     }
-    FragColor = vec4(outColor, gl_FragCoord.z);
-
-    // vec3 lightDir = normalize(lightPos - vPos);
-    // vec3 normal = normalize(vNormal);
-
-    // // float a = dot(lightDir, normal);
-    // // if (a < 0.0) {
-    // //     FragColor = vec4(1.0, 0.0, 0.0, 1.0);
-    // // } else {
-    // //     float ambientStrength = 0.5;
-    // //     vec3 ambient = ambientStrength * vColor;
-    // //     vec3 diffuse = a * vColor;
-    // //     vec3 result = ambient + diffuse;
-    // //     FragColor = vec4(result, 1.0);
-    // // }
-
-    // float a = max(dot(lightDir, normal), 0.0);
-    // float ambientStrength = 0.2;
-    // vec3 ambient = ambientStrength * vColor;
-    // vec3 diffuse = a * vColor;
-    // vec3 result = ambient + diffuse;
-    // FragColor = vec4(result, 1.0);
+    FragColor = vec4(outColor, 1);
     
 }
