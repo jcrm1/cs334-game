@@ -1,26 +1,18 @@
 # cs334-game
 ## Build process
-1. `cmake -B build`
+1. `cmake -B build` for a debug build or `cmake -B build -DCMAKE_BUILD_TYPE=Release` to enable compiler optimizations
 2. `cmake --build build`
+3. Run with `./build/Game <framerate (default 60)>` (or adjust the path for your OS and compiler)
 
-## User Stories
-1. As a user, I want to see beautiful terrain
-2. As a user, I want to see trees
-3. As a user, I want to see natural-looking water sources and formations
-   1. Waterfalls
-   2. Lakes
-   3. Rivers
-   4. Puddles
-4. As a user, I want to see weather
-5. As a user, I want to see different biomes of terrain
-6. As a user, I want to move on 3 axis in real time  
-
-Water source and sink points are defined maybe arbitrarily, then water is filled between the two  
-Terrain generates in phases:  
-1. Ground
-2. Biomes from noise?
-3. Water
-4. Nature/decorations
+## Keybinds
+- `W/A/S/D`: movement
+- `Left Control`: move down
+- `Left Shift`: move faster (momentary, not toggle)
+- `Escape`: quit the game
+- `F`: toggle distance fog
+- `G`: toggle screen-space godrays
+- `N`: toggle no-clip (disables collisions and faux-gravity)
+- `P`: toggle Picture-in-Picture view of occlusion render pass
 
 water texture [resources/Water.jpg](https://commons.wikimedia.org/wiki/File:ISS006-E-37356_-_View_of_Pacific_Ocean.jpg)
 (public domain NASA image. not protected by copyright)
