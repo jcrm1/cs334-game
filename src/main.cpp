@@ -342,7 +342,7 @@ int main(int argc, char* argv[]) {
     vertices[512].normal[0], vertices[512].normal[1], vertices[512].normal[2],
     vertices[1024].normal[0], vertices[1024].normal[1], vertices[1024].normal[2]);
 
-  int source = 520800;
+  int source = 544800;
   int amount = 5000;
   printf("Starting water mesh generation (this can take a while)...\n");
   int *waterBottom = (int *)malloc(amount * sizeof(int));
