@@ -20,13 +20,15 @@ Highest-Level Procedure:
 
 Current Generalized Procedure:
     //them
-    1. Terrain generation (solid surfaces, not covered here)
-    2. Source demarcation
+    1. Terrain generation (solid surfaces, not covered here) (done)
+    2. Source demarcation (not completed)
     //me
-    3. General path determination (for loaded chunks)
-    4. Speed Calculation
-    5. Turbulence Calculation
-    7. Refraction <- in shader
-    8. Reflection <- in shader
+    3. Basic water mesh (aligned with terrain mesh)
+    4. General path determination
+    5. Speed Calculation
+    Refraction <- in shader
+    9. Reflection <- in shader
+    . Turbulence Calculation
+    7. Top mesh generation
     //them
-    9. Rendering 
+    10. Correct render order

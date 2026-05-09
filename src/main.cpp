@@ -15,8 +15,7 @@
 #include "Camera.hpp"
 #include "Constants.hpp"
 #include "Water.hpp"
-
-
+#include "Schedule.hpp"
 
 #define OK (0)
 #define ERR_GLFW (-1)
@@ -304,8 +303,8 @@ int main(int argc, char* argv[]) {
   }
   printf("Normalized normals\n");
 
-  int source = 524800;
-  int amount = 50000;
+  int source = 684823;
+  int amount = 5000;
   int *waterBottom = (int *)malloc(amount * sizeof(int));
   if (waterBottom == NULL) {
     printf("Failed to allocate memory for waterBottom\n");
@@ -319,14 +318,12 @@ int main(int argc, char* argv[]) {
   //get triangle indices and vertices for water bottom mesh
 
   unsigned int (*waterBottomIndices)[3] = (unsigned int (*)[3])malloc((amount * 3) * sizeof(*waterBottomIndices));
-  printf("sizeof waterBottomIndices: %d\n", int(sizeof(*waterBottomIndices)));
   if (waterBottomIndices == NULL) {
     printf("Failed to allocate memory for waterBottomIndices\n");
     return ERR_ALLOCATE;
   }
   printf("Allocated waterBottomIndices\n");
   Vertex *waterBottomVertices = (Vertex *)malloc((amount * 3) * sizeof(Vertex));
-  printf("sizeof waterBottomVertices: %d\n", int(sizeof(Vertex)));
   if (waterBottomVertices == NULL) {
     printf("Failed to allocate memory for waterBottomVertices\n");
     return ERR_ALLOCATE;
@@ -479,7 +476,7 @@ int main(int argc, char* argv[]) {
   printf("Created terrain VAO\n");
 
 
-  // water bottom mesh (non-functional)
+  // water bottom mesh
 
   unsigned int VAO_WATER, VBO_WATER, EBO_WATER;
   glGenBuffers(1, &VBO_WATER);
@@ -490,10 +487,10 @@ int main(int argc, char* argv[]) {
 
   // 2. copy our vertices array in a vertex buffer for OpenGL to use
   glBindBuffer(GL_ARRAY_BUFFER, VBO_WATER);
-  glBufferData(GL_ARRAY_BUFFER, (y * x) * sizeof(*vertices), vertices, GL_STATIC_DRAW);
+  glBufferData(GL_ARRAY_BUFFER, (y * x) * sizeof(*vertices), vertices, GL_DYNAMIC_DRAW);
   // 3. copy our index array in a element buffer for OpenGL to use
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_WATER);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, amount * 3 * sizeof(*waterBottomIndices), waterBottomIndices, GL_STATIC_DRAW);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, amount * 3 * sizeof(*waterBottomIndices), waterBottomIndices, GL_DYNAMIC_DRAW);
   // 4. then set the vertex attributes pointers
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, position));
   glEnableVertexAttribArray(0);
@@ -676,6 +673,8 @@ int main(int argc, char* argv[]) {
 
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.SetSpeed(10.0f);
     else camera.SetSpeed(2.5f);
+
+    vertices[0].position[0] ++;
 
     // render scene
     glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
