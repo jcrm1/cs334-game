@@ -3,9 +3,10 @@
 1. `cmake -B build` for a debug build or `cmake -B build -DCMAKE_BUILD_TYPE=Release` to enable compiler optimizations
 2. `cmake --build build`
 3. Run with `./build/Game <framerate (default 60)>` (or adjust the path for your OS and compiler)
+   - Example: `./build/Game 60`
 
 ## Keybinds
-- `W/A/S/D`: movement
+- `W/A/S/D`: move
 - `Left Control`: move down
 - `Left Shift`: move faster (momentary, not toggle)
 - `Escape`: quit the game
