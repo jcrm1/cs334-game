@@ -147,11 +147,13 @@ int main(int argc, char* argv[]) {
   unsigned int grassTex = loadTexture("resources/Grass.png");
   unsigned int rockTex  = loadTexture("resources/Stone.jpg");
   unsigned int snowTex  = loadTexture("resources/Snow2.jpg");
+  unsigned int waterTex = loadTexture("resources/Water.jpg");
 
   terrain_shader.use();
   terrain_shader.setInt("grassTex", 0);
   terrain_shader.setInt("rockTex", 1);
   terrain_shader.setInt("snowTex", 2);
+  water_shader.setInt("waterTex", 0);
 
   //int x = 512, y = 512;
   int x = 1024, y = 1024;
@@ -796,6 +798,8 @@ int main(int argc, char* argv[]) {
     water_shader.setBool("enableFog", enableFog);
     // printf("Set water enable fog\n");
 
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, waterTex);
     glDepthFunc(GL_LEQUAL);
     glBindVertexArray(VAO_WATER);
     glDrawElements(GL_TRIANGLES, amount * 3, GL_UNSIGNED_INT, 0);

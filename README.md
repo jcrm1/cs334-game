@@ -22,3 +22,5 @@ Terrain generates in phases:
 3. Water
 4. Nature/decorations
 
+water texture [resources/Water.jpg](https://commons.wikimedia.org/wiki/File:ISS006-E-37356_-_View_of_Pacific_Ocean.jpg)
+(public domain NASA image. not protected by copyright)

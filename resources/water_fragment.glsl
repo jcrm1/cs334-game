@@ -15,6 +15,8 @@ uniform float fogLength;
 uniform float seaLevel;
 uniform bool near;
 
+uniform sampler2D waterTex;
+
 const float specularPower = 80;
 const float specStrength = 0.3;
 const vec3 specularColor = vec3(1,1,1);
@@ -22,7 +24,12 @@ const float ambientScalar = 0.7;
 
 void main() {
     vec3 vNormal = vec3(0,1,0);
-    vec3 outColor = vColor;
+    // vec3 outColor = vColor;
+
+    vec2 uv = vPos.xz * 0.05;
+    vec3 outColor = texture(waterTex, uv).rgb;
+    outColor = vec3(outColor.r, outColor.g, clamp(outColor.b + 0.1, 0, 1));
+
     float mySpecularPower = specularPower;
     float mySpecStrength = specStrength;
     float fractY = fract(vPos.y);
