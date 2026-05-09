@@ -1,7 +1,7 @@
 #version 330 core
 layout (location = 0) in vec2 aPos;
 
-uniform vec3 lightPos = vec3(200,100,0);
+uniform vec3 lightPos;
 uniform mat4 view;
 uniform mat4 projection;
 uniform uint screenWidth;

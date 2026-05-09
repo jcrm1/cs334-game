@@ -79,14 +79,14 @@ void mouse_callback(GLFWwindow *window, double xposIn, double yposIn) {
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
   camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
-// static int target_fps = 30;
+static int target_fps = 60;
 int main(int argc, char* argv[]) {
-  // if (argc == 2) {
-  //   int res = sscanf(argv[1], "%d", &target_fps);
-  //   if (res != 1) {
-  //     printf("Invalid fps\n");
-  //   }
-  // }
+  if (argc == 2) {
+    int res = sscanf(argv[1], "%d", &target_fps);
+    if (res != 1) {
+      printf("Invalid fps\n");
+    }
+  }
   glfwInit();
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -116,6 +116,7 @@ int main(int argc, char* argv[]) {
   Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
   Shader water_shader("resources/water_vertex.glsl", "resources/water_fragment.glsl");
+  Shader pip_shader("resources/pip_vertex.glsl", "resources/pip_fragment.glsl");
 
   //int x = 512, y = 512;
   int x = 1024, y = 1024;
@@ -221,9 +222,9 @@ int main(int argc, char* argv[]) {
       t *= (1.0f - w_mountain);
       height = glm::mix(height, SEA_LEVEL - 0.5f, t);
 
-      vertices[base].position[0] = vx;
-      vertices[base].position[1] = height;
-      vertices[base].position[2] = vz;
+      vertices[base].position.x = vx;
+      vertices[base].position.y = height;
+      vertices[base].position.z = vz;
       if (height > heightmap_max) heightmap_max = height;
       if (height < heightmap_min) heightmap_min = height;
     }
@@ -240,67 +241,46 @@ int main(int argc, char* argv[]) {
     for (int ix = 0; ix < x - 1; ix++) {
       int base = (iz * (x - 1) + ix) * 2;
       // triangle 1
-      int tx = (iz * x) + ix;
-      int ty = ((iz + 1) * x) + ix;
-      int tz = ((iz + 1) * x) + ix + 1;
+      int tx = (iz * x) + ix; // top left
+      int ty = ((iz + 1) * x) + ix; // bottom left
+      int tz = ((iz + 1) * x) + ix + 1; // bottom right
       if (iz < 5 && ix < 5) printf("iz %d ix %d tx %d ty %d tz %d\n", iz, ix, tx, ty, tz);
       indices[base + 0][0] = tx;
       indices[base + 0][1] = ty;
       indices[base + 0][2] = tz;
       // triangle 1 face normal
       // there's probably some library function to do this stuff and it probably uses vector ops but i dunno how to do that
-      float *v0 = vertices[tx].position;
-      float *v1 = vertices[ty].position;
-      float *v2 = vertices[tz].position;
-      glm::vec3 p0(v0[0], v0[1], v0[2]);
-      glm::vec3 p1(v1[0], v1[1], v1[2]);
-      glm::vec3 p2(v2[0], v2[1], v2[2]);
+      glm::vec3 v0 = vertices[tx].position;
+      glm::vec3 v1 = vertices[ty].position;
+      glm::vec3 v2 = vertices[tz].position;
       // Use swapped cross order so a flat XZ plane points +Y.
-      glm::vec3 faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      vertices[tx].normal[0] += faceNormal.x;
-      vertices[tx].normal[1] += faceNormal.y;
-      vertices[tx].normal[2] += faceNormal.z;
-      vertices[ty].normal[0] += faceNormal.x;
-      vertices[ty].normal[1] += faceNormal.y;
-      vertices[ty].normal[2] += faceNormal.z;
-      vertices[tz].normal[0] += faceNormal.x;
-      vertices[tz].normal[1] += faceNormal.y;
-      vertices[tz].normal[2] += faceNormal.z;
+      glm::vec3 faceNormal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+      vertices[tx].normal += faceNormal;
+      vertices[ty].normal += faceNormal;
+      vertices[tz].normal += faceNormal;
 
       // triangle 2
-      tx = (iz * x) + ix;
-      ty = (iz * x) + ix + 1;
-      tz = ((iz + 1) * x) + ix + 1;
-      indices[base + 1][0] = tx;
+      tx = (iz * x) + ix; // top left
+      ty = (iz * x) + ix + 1; // top right
+      tz = ((iz + 1) * x) + ix + 1; // bottom right
+      indices[base + 1][0] = tz;
       indices[base + 1][1] = ty;
-      indices[base + 1][2] = tz;
+      indices[base + 1][2] = tx;
       // triangle 2 face normal
-      v0 = vertices[tx].position;
+      v0 = vertices[tz].position;
       v1 = vertices[ty].position;
-      v2 = vertices[tz].position;
-      p0 = glm::vec3(v0[0], v0[1], v0[2]);
-      p1 = glm::vec3(v1[0], v1[1], v1[2]);
-      p2 = glm::vec3(v2[0], v2[1], v2[2]);
-      faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      vertices[tx].normal[0] += faceNormal.x;
-      vertices[tx].normal[1] += faceNormal.y;
-      vertices[tx].normal[2] += faceNormal.z;
-      vertices[ty].normal[0] += faceNormal.x;
-      vertices[ty].normal[1] += faceNormal.y;
-      vertices[ty].normal[2] += faceNormal.z;
-      vertices[tz].normal[0] += faceNormal.x;
-      vertices[tz].normal[1] += faceNormal.y;
-      vertices[tz].normal[2] += faceNormal.z;
+      v2 = vertices[tx].position;
+      faceNormal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+      vertices[tx].normal += faceNormal;
+      vertices[ty].normal += faceNormal;
+      vertices[tz].normal += faceNormal;
     }
   }
   printf("Created indices\n");
   // normalize normals
   for (int i = 0; i < y * x; i++) {
-    float *normal = vertices[i].normal;
-    float len = sqrtf((normal[0] * normal[0]) + (normal[1] * normal[1]) + (normal[2] * normal[2]));
-    normal[0] /= len;
-    normal[1] /= len;
-    normal[2] /= len;
+    if (glm::length(vertices[i].normal) > 0.0001f) vertices[i].normal = glm::normalize(vertices[i].normal);
+    else vertices[i].normal = glm::vec3(0, 1, 0);
   }
   printf("Normalized normals\n");
 
@@ -370,15 +350,15 @@ int main(int argc, char* argv[]) {
       if (ox1 > x - 1) ox1 = x - 1;
       if (oz1 > y - 1) oz1 = y - 1;
 
-      float *p00 = vertices[(oz0 * x) + ox0].position;
-      float *p10 = vertices[(oz0 * x) + ox1].position;
-      float *p01 = vertices[(oz1 * x) + ox0].position;
-      float *p11 = vertices[(oz1 * x) + ox1].position;
+      glm::vec3 p00 = vertices[(oz0 * x) + ox0].position;
+      glm::vec3 p10 = vertices[(oz0 * x) + ox1].position;
+      glm::vec3 p01 = vertices[(oz1 * x) + ox0].position;
+      glm::vec3 p11 = vertices[(oz1 * x) + ox1].position;
 
       int out = (vz * lod_1_x) + vx;
-      lod_1_verts[out].position[0] = p00[0];
-      lod_1_verts[out].position[1] = (p00[1] + p10[1] + p01[1] + p11[1]) / 4.0f;
-      lod_1_verts[out].position[2] = p00[2];
+      lod_1_verts[out].position.x = p00.x;
+      lod_1_verts[out].position.y = (p00.y + p10.y + p01.y + p11.y) / 4.0f;
+      lod_1_verts[out].position.z = p00.z;
     }
   }
   unsigned int (*lod_1_indices)[3] = (unsigned int (*)[3])malloc(((lod_1_x - 1) * (lod_1_z - 1) * 2) * sizeof(*lod_1_indices));
@@ -398,63 +378,37 @@ int main(int argc, char* argv[]) {
       lod_1_indices[base + 0][2] = tz;
       // triangle 1 face normal
       // there's probably some library function to do this stuff and it probably uses vector ops but i dunno how to do that
-      float *v0 = lod_1_verts[tx].position;
-      float *v1 = lod_1_verts[ty].position;
-      float *v2 = lod_1_verts[tz].position;
-      glm::vec3 p0(v0[0], v0[1], v0[2]);
-      glm::vec3 p1(v1[0], v1[1], v1[2]);
-      glm::vec3 p2(v2[0], v2[1], v2[2]);
+      glm::vec3 v0 = lod_1_verts[tx].position;
+      glm::vec3 v1 = lod_1_verts[ty].position;
+      glm::vec3 v2 = lod_1_verts[tz].position;
       // Use swapped cross order so a flat XZ plane points +Y.
-      glm::vec3 faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      lod_1_verts[tx].normal[0] += faceNormal.x;
-      lod_1_verts[tx].normal[1] += faceNormal.y;
-      lod_1_verts[tx].normal[2] += faceNormal.z;
-      lod_1_verts[ty].normal[0] += faceNormal.x;
-      lod_1_verts[ty].normal[1] += faceNormal.y;
-      lod_1_verts[ty].normal[2] += faceNormal.z;
-      lod_1_verts[tz].normal[0] += faceNormal.x;
-      lod_1_verts[tz].normal[1] += faceNormal.y;
-      lod_1_verts[tz].normal[2] += faceNormal.z;
+      glm::vec3 faceNormal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+      lod_1_verts[tx].normal += faceNormal;
+      lod_1_verts[ty].normal += faceNormal;
+      lod_1_verts[tz].normal += faceNormal;
 
       // triangle 2
       tx = (iz * lod_1_x) + ix;
       ty = (iz * lod_1_x) + ix + 1;
       tz = ((iz + 1) * lod_1_x) + ix + 1;
-      lod_1_indices[base + 1][0] = tx;
+      lod_1_indices[base + 1][0] = tz;
       lod_1_indices[base + 1][1] = ty;
-      lod_1_indices[base + 1][2] = tz;
+      lod_1_indices[base + 1][2] = tx;
       // triangle 2 face normal
-      v0 = lod_1_verts[tx].position;
+      v0 = lod_1_verts[tz].position;
       v1 = lod_1_verts[ty].position;
-      v2 = lod_1_verts[tz].position;
-      p0 = glm::vec3(v0[0], v0[1], v0[2]);
-      p1 = glm::vec3(v1[0], v1[1], v1[2]);
-      p2 = glm::vec3(v2[0], v2[1], v2[2]);
-      faceNormal = glm::normalize(glm::cross(p2 - p0, p1 - p0));
-      lod_1_verts[tx].normal[0] += faceNormal.x;
-      lod_1_verts[tx].normal[1] += faceNormal.y;
-      lod_1_verts[tx].normal[2] += faceNormal.z;
-      lod_1_verts[ty].normal[0] += faceNormal.x;
-      lod_1_verts[ty].normal[1] += faceNormal.y;
-      lod_1_verts[ty].normal[2] += faceNormal.z;
-      lod_1_verts[tz].normal[0] += faceNormal.x;
-      lod_1_verts[tz].normal[1] += faceNormal.y;
-      lod_1_verts[tz].normal[2] += faceNormal.z;
+      v2 = lod_1_verts[tx].position;
+      faceNormal = glm::normalize(glm::cross(v2 - v0, v1 - v0));
+      lod_1_verts[tx].normal += faceNormal;
+      lod_1_verts[ty].normal += faceNormal;
+      lod_1_verts[tz].normal += faceNormal;
     }
   }
   // lod 1 normalize normals
   for (int i = 0; i < lod_1_z * lod_1_x; i++) {
-    float *normal = lod_1_verts[i].normal;
-    float len = sqrtf((normal[0] * normal[0]) + (normal[1] * normal[1]) + (normal[2] * normal[2]));
-    if (len > 0.00001f) {
-      normal[0] /= len;
-      normal[1] /= len;
-      normal[2] /= len;
-    } else {
-      normal[0] = 0.0f;
-      normal[1] = 1.0f;
-      normal[2] = 0.0f;
-    }
+    if (glm::length(lod_1_verts[i].normal) > 0.0001f) lod_1_verts[i].normal = glm::normalize(lod_1_verts[i].normal);
+    else lod_1_verts[i].normal = glm::vec3(0, 1, 0);
+    
   }
   printf("Generated LOD mesh\n");
 
@@ -562,7 +516,7 @@ int main(int argc, char* argv[]) {
   float fogLength = 25.0f;
 
   // sun position
-  glm::vec3 lightPos(200, 100, 0);
+  glm::vec3 lightPos(200, 50, 0);
 
   unsigned int terrain_tex;
   glGenTextures(1, &terrain_tex);
@@ -626,14 +580,23 @@ int main(int argc, char* argv[]) {
 
   glm::mat4 normalMatrix = glm::transpose(glm::inverse(model));
   unsigned long frameCount = 1;
-  // float target_frame_time = 1.0f / target_fps;
+  double target_frame_time = ((double) 1.0f) / target_fps;
   bool grounded = false;
   bool fogKeyDown = false;
   bool enableFog = true;
+  bool godraysKeyDown = false;
+  bool enableGodrays = true;
+  bool pipKeyDown = false;
+  bool enablePip = true;
+  bool noclipKeyDown = false;
+  bool enableNoclip = false;
   while (!glfwWindowShouldClose(window)) {
-    float currentFrame = static_cast<float>(glfwGetTime());
+    double currentFrame = glfwGetTime();
     deltaTime = currentFrame - lastFrame;
-    // if (deltaTime < target_frame_time) usleep();
+    if (deltaTime < target_frame_time) {
+      long long sleepTime = (long long) (1000000 * (target_frame_time - deltaTime));
+      std::this_thread::sleep_for(std::chrono::microseconds(sleepTime));
+    }
     lastFrame = currentFrame;
     // process input
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, true);
@@ -646,33 +609,57 @@ int main(int argc, char* argv[]) {
     if (glfwGetKey(window, GLFW_KEY_F) == GLFW_PRESS && !fogKeyDown) {
       enableFog = !enableFog;
       fogKeyDown = true;
+      printf("Fog toggled %d\n", enableFog);
     } else if (glfwGetKey(window, GLFW_KEY_F) == GLFW_RELEASE) {
       fogKeyDown = false;
     }
+    if (glfwGetKey(window, GLFW_KEY_G) == GLFW_PRESS && !godraysKeyDown) {
+      enableGodrays = !enableGodrays;
+      godraysKeyDown = true;
+      printf("Godrays toggled %d\n", enableGodrays);
+    } else if (glfwGetKey(window, GLFW_KEY_G) == GLFW_RELEASE) {
+      godraysKeyDown = false;
+    }
+    if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && !pipKeyDown) {
+      enablePip = !enablePip;
+      pipKeyDown = true;
+      printf("PiP toggled %d\n", enablePip);
+    } else if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) {
+      pipKeyDown = false;
+    }
+    if (glfwGetKey(window, GLFW_KEY_N) == GLFW_PRESS && !noclipKeyDown) {
+      enableNoclip = !enableNoclip;
+      noclipKeyDown = true;
+      printf("Noclip toggled %d\n", enableNoclip);
+    } else if (glfwGetKey(window, GLFW_KEY_N) == GLFW_RELEASE) {
+      noclipKeyDown = false;
+    }
 
     // Process "collisions" but it's really just checking terrain heights
-    int x_scaled_floor = glm::floor(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
-    int x_scaled_ceil = glm::ceil(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
-    int z_scaled_floor = glm::floor(camera.Position.z * TERRAIN_SCALE_RECIPROCAL);
-    int z_scaled_ceil = glm::ceil(camera.Position.z * TERRAIN_SCALE_RECIPROCAL);
-    int x_offset_floor = x_scaled_floor - OFFSET(x_scaled_floor);
-    int x_offset_ceil = x_scaled_floor + OFFSET(x_scaled_floor);
-    int z_offset_floor = z_scaled_floor - OFFSET(z_scaled_floor);
-    int z_offset_ceil = z_scaled_floor + OFFSET(z_scaled_floor);
-    float max_height = 0;
-    if (!((x_offset_floor < 0 || x_offset_ceil > x) || (z_offset_floor < 0 || z_offset_ceil > y))) {
-      float neg_neg_height = vertices[(z_offset_floor * x) + x_offset_floor].position[1];
-      float neg_pos_height = vertices[(z_offset_ceil * x) + x_offset_floor].position[1];
-      float pos_pos_height = vertices[(z_offset_ceil * x) + x_offset_ceil].position[1];
-      float pos_neg_height = vertices[(z_offset_floor * x) + x_offset_ceil].position[1];
-      if (neg_neg_height > max_height) max_height = neg_neg_height;
-      if (neg_pos_height > max_height) max_height = neg_pos_height;
-      if (pos_pos_height > max_height) max_height = pos_pos_height;
-      if (pos_neg_height > max_height) max_height = pos_neg_height;
+    if (!enableNoclip) {
+      int x_scaled_floor = glm::floor(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
+      int x_scaled_ceil = glm::ceil(camera.Position.x * TERRAIN_SCALE_RECIPROCAL);
+      int z_scaled_floor = glm::floor(camera.Position.z * TERRAIN_SCALE_RECIPROCAL);
+      int z_scaled_ceil = glm::ceil(camera.Position.z * TERRAIN_SCALE_RECIPROCAL);
+      int x_offset_floor = x_scaled_floor - OFFSET(x_scaled_floor);
+      int x_offset_ceil = x_scaled_floor + OFFSET(x_scaled_floor);
+      int z_offset_floor = z_scaled_floor - OFFSET(z_scaled_floor);
+      int z_offset_ceil = z_scaled_floor + OFFSET(z_scaled_floor);
+      float max_height = 0;
+      if (!((x_offset_floor < 0 || x_offset_ceil > x) || (z_offset_floor < 0 || z_offset_ceil > y))) {
+        float neg_neg_height = vertices[(z_offset_floor * x) + x_offset_floor].position[1];
+        float neg_pos_height = vertices[(z_offset_ceil * x) + x_offset_floor].position[1];
+        float pos_pos_height = vertices[(z_offset_ceil * x) + x_offset_ceil].position[1];
+        float pos_neg_height = vertices[(z_offset_floor * x) + x_offset_ceil].position[1];
+        if (neg_neg_height > max_height) max_height = neg_neg_height;
+        if (neg_pos_height > max_height) max_height = neg_pos_height;
+        if (pos_pos_height > max_height) max_height = pos_pos_height;
+        if (pos_neg_height > max_height) max_height = pos_neg_height;
+      }
+      max_height += 0.5f;
+      if (camera.Position.y > max_height && glfwGetKey(window, GLFW_KEY_SPACE) != GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
+      if (camera.Position.y < max_height) camera.Position.y = max_height;
     }
-    max_height += 0.5f;
-    if (camera.Position.y > max_height && glfwGetKey(window, GLFW_KEY_SPACE) != GLFW_PRESS) camera.ProcessKeyboard(DOWN, deltaTime);
-    if (camera.Position.y < max_height) camera.Position.y = max_height;
 
     if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) camera.SetSpeed(10.0f);
     else camera.SetSpeed(2.5f);
@@ -785,7 +772,24 @@ int main(int argc, char* argv[]) {
     godray_shader.setFloat("fogLength", fogLength);
     godray_shader.setVec3("cameraPos", camera.Position);
     godray_shader.setBool("enableFog", enableFog);
+    godray_shader.setBool("enableGodrays", enableGodrays);
     glDrawArrays(GL_TRIANGLES, 0, 3);
+
+    // render pip
+    if (enablePip) {
+      int vp_x = (window_width * 2) / 3;
+      int vp_y = (window_height * 2) / 3;
+      int vp_width = window_width - vp_x;
+      int vp_height = window_height - vp_y;
+      glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+      glViewport(vp_x, vp_y, vp_width, vp_height);
+      pip_shader.use();
+      pip_shader.setUnsignedInt("screenWidth", window_width);
+      pip_shader.setUnsignedInt("screenHeight", window_height);
+      pip_shader.setInt("tex", 1);
+      glBindVertexArray(screen_vao);
+      glDrawArrays(GL_TRIANGLES, 0, 3);
+    }
 
     // done rendering
     glBindVertexArray(0);
