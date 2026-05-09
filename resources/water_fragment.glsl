@@ -1,7 +1,6 @@
 #version 330 core
 out vec4 FragColor;
 
-in vec3 vNormal;
 in vec3 vPos;
 in vec3 vColor;
 in float vHeight;
@@ -15,12 +14,7 @@ uniform float fogLength;
 uniform float seaLevel;
 uniform bool near;
 
-uniform vec3 lightPos;
-
-const float specularPower = 32;
-const float specStrength = 0.2;
-const vec3 specularColor = vec3(1,1,1);
-const float ambientScalar = 0.9;
+const vec3 lightPos = vec3(200.0, 200.0, 0.0);
 
 void main() {
     vec3 outColor = vec3(1.0,0.0,0.0);
@@ -31,17 +25,6 @@ void main() {
     } else {
         outColor = vColor;
     }
-    // apply phong shading based on info at https://mrl.cs.nyu.edu/~perlin/courses/fall2005ugrad/phong.html
-    vec3 normal = normalize(vNormal);
-    vec3 lightDir = normalize(lightPos - vPos);
-    vec3 cameraDir = normalize(cameraPos - vPos);
-    
-    vec3 ambient = outColor * ambientScalar;
-    float nl = max(0, dot(normal, lightDir));
-    vec3 diffuse = outColor * nl;
-    vec3 specular = specularColor * pow(max(0, dot(cameraDir, reflect(-1 * lightDir, normal))), specularPower) * specStrength;
-    outColor = ambient + diffuse + specular;
-
     float dist = distance(vPos, cameraPos);
     if (enableFog) {
         // fog mode
@@ -61,13 +44,29 @@ void main() {
     } else {
         // LOD mode
         // gives a bit of extra margin with (fogLength / 10.0) to remove the seam in the world
-        if (!near && dist > fogStart + fogLength - (fogLength / 10.0)) {
-            // do nothing! this will output to FragColor
-        } else if (near && dist <= fogStart + fogLength) {
-            // do nothing! this will output to FragColor
-        } else {
-            discard; // this will not output to FragColor
-        }
+        // do nothing
     }
     FragColor = vec4(outColor, gl_FragCoord.z);
+
+    // vec3 lightDir = normalize(lightPos - vPos);
+    // vec3 normal = normalize(vNormal);
+
+    // // float a = dot(lightDir, normal);
+    // // if (a < 0.0) {
+    // //     FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+    // // } else {
+    // //     float ambientStrength = 0.5;
+    // //     vec3 ambient = ambientStrength * vColor;
+    // //     vec3 diffuse = a * vColor;
+    // //     vec3 result = ambient + diffuse;
+    // //     FragColor = vec4(result, 1.0);
+    // // }
+
+    // float a = max(dot(lightDir, normal), 0.0);
+    // float ambientStrength = 0.2;
+    // vec3 ambient = ambientStrength * vColor;
+    // vec3 diffuse = a * vColor;
+    // vec3 result = ambient + diffuse;
+    // FragColor = vec4(result, 1.0);
+    
 }

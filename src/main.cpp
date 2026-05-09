@@ -10,18 +10,13 @@
 
 #include "FastNoiseLite.h"
 
+#include "Vertex.hpp"
 #include "Shader.hpp"
 #include "Camera.hpp"
 #include "Constants.hpp"
-#include <thread>
+#include "Water.hpp"
 
-#pragma pack(push, 1)
-struct Vertex {
-  glm::vec3 position;
-  glm::vec3 normal;
-};
-#pragma pack(pop)
-static_assert(sizeof(Vertex) == 6 * sizeof(float), "Vertex struct has unexpected padding");
+
 
 #define OK (0)
 #define ERR_GLFW (-1)
@@ -120,6 +115,7 @@ int main(int argc, char* argv[]) {
   Shader terrain_shader("resources/terrain_vertex.glsl", "resources/terrain_fragment.glsl");
   Shader godray_shader("resources/godray_vertex.glsl", "resources/godray_fragment.glsl");
   Shader occlusion_shader("resources/terrain_vertex.glsl", "resources/occlusion_fragment.glsl");
+  Shader water_shader("resources/water_vertex.glsl", "resources/water_fragment.glsl");
   Shader pip_shader("resources/pip_vertex.glsl", "resources/pip_fragment.glsl");
 
   //int x = 512, y = 512;
@@ -288,6 +284,46 @@ int main(int argc, char* argv[]) {
   }
   printf("Normalized normals\n");
 
+  int source = 524800;
+  int amount = 50000;
+  int *waterBottom = (int *)malloc(amount * sizeof(int));
+  if (waterBottom == NULL) {
+    printf("Failed to allocate memory for waterBottom\n");
+    return ERR_ALLOCATE;
+  }
+  createBottomMesh(&waterBottom, source, amount, (vertices), indices, (y - 1) * (x - 1) * 2, x*y);
+  printf("Created water bottom mesh\n");
+
+  // printtriangles(waterBottom, amount);
+
+  //get triangle indices and vertices for water bottom mesh
+
+  unsigned int (*waterBottomIndices)[3] = (unsigned int (*)[3])malloc((amount * 3) * sizeof(*waterBottomIndices));
+  printf("sizeof waterBottomIndices: %d\n", int(sizeof(*waterBottomIndices)));
+  if (waterBottomIndices == NULL) {
+    printf("Failed to allocate memory for waterBottomIndices\n");
+    return ERR_ALLOCATE;
+  }
+  printf("Allocated waterBottomIndices\n");
+  Vertex *waterBottomVertices = (Vertex *)malloc((amount * 3) * sizeof(Vertex));
+  printf("sizeof waterBottomVertices: %d\n", int(sizeof(Vertex)));
+  if (waterBottomVertices == NULL) {
+    printf("Failed to allocate memory for waterBottomVertices\n");
+    return ERR_ALLOCATE;
+  }
+  printf("Allocated waterBottomVertices\n");
+  for (int i = 0; i < amount; i++){
+    int triIndex = waterBottom[i];
+    // printf("W %d: %d\n", i, triIndex);
+    waterBottomIndices[i][0] = indices[triIndex][0];
+    waterBottomIndices[i][1] = indices[triIndex][1];
+    waterBottomIndices[i][2] = indices[triIndex][2];
+    waterBottomVertices[i*3 + 0] = vertices[indices[triIndex][0]];
+    waterBottomVertices[i*3 + 1] = vertices[indices[triIndex][1]];
+    waterBottomVertices[i*3 + 2] = vertices[indices[triIndex][2]];
+  }
+  printf("Copied water bottom mesh data\n");
+
   /*
    * LOD plan:
    * 1. generate 1/2 density mesh. maybe use lowest height on exterior?
@@ -302,6 +338,7 @@ int main(int argc, char* argv[]) {
     printf("Failed to allocate memory for lod_1_verts\n");
     return ERR_ALLOCATE;
   }
+  printf("Allocated lod_1_verts\n");
   for (int vz = 0; vz < lod_1_z; vz++) {
     for (int vx = 0; vx < lod_1_x; vx++) {
       int ox0 = vx * 2;
@@ -373,6 +410,7 @@ int main(int argc, char* argv[]) {
     else lod_1_verts[i].normal = glm::vec3(0, 1, 0);
     
   }
+  printf("Generated LOD mesh\n");
 
   unsigned int VAO, VBO, EBO;
   glGenBuffers(1, &VBO);
@@ -387,6 +425,29 @@ int main(int argc, char* argv[]) {
   // 3. copy our index array in a element buffer for OpenGL to use
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
   glBufferData(GL_ELEMENT_ARRAY_BUFFER, ((y - 1) * (x - 1) * 2) * sizeof(*indices), indices, GL_STATIC_DRAW);
+  // 4. then set the vertex attributes pointers
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, position));
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, normal));
+  glEnableVertexAttribArray(1);
+  printf("Created terrain VAO\n");
+
+
+  // water bottom mesh (non-functional)
+
+  unsigned int VAO_WATER, VBO_WATER, EBO_WATER;
+  glGenBuffers(1, &VBO_WATER);
+  glGenBuffers(1, &EBO_WATER);
+  glGenVertexArrays(1, &VAO_WATER);
+
+  glBindVertexArray(VAO_WATER);
+
+  // 2. copy our vertices array in a vertex buffer for OpenGL to use
+  glBindBuffer(GL_ARRAY_BUFFER, VBO_WATER);
+  glBufferData(GL_ARRAY_BUFFER, (y * x) * sizeof(*vertices), vertices, GL_STATIC_DRAW);
+  // 3. copy our index array in a element buffer for OpenGL to use
+  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO_WATER);
+  glBufferData(GL_ELEMENT_ARRAY_BUFFER, amount * 3 * sizeof(*waterBottomIndices), waterBottomIndices, GL_STATIC_DRAW);
   // 4. then set the vertex attributes pointers
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *)offsetof(Vertex, position));
   glEnableVertexAttribArray(0);
@@ -497,25 +558,25 @@ int main(int argc, char* argv[]) {
   glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
   glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, mask_rbo);
 
-  // unsigned int terrain_lod_tex;
-  // glGenTextures(1, &terrain_lod_tex);
-  // glBindTexture(GL_TEXTURE_2D, terrain_lod_tex);
-  // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, window_width, window_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-  // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  unsigned int terrain_lod_tex;
+  glGenTextures(1, &terrain_lod_tex);
+  glBindTexture(GL_TEXTURE_2D, terrain_lod_tex);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, window_width, window_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-  // unsigned int terrain_lod_fbo;
-  // glGenFramebuffers(1, &terrain_lod_fbo);
-  // glBindFramebuffer(GL_FRAMEBUFFER, terrain_lod_fbo);
-  // glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, terrain_lod_tex, 0);
+  unsigned int terrain_lod_fbo;
+  glGenFramebuffers(1, &terrain_lod_fbo);
+  glBindFramebuffer(GL_FRAMEBUFFER, terrain_lod_fbo);
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, terrain_lod_tex, 0);
 
-  // unsigned int terrain_lod_rbo;
-  // glGenRenderbuffers(1, &terrain_lod_rbo);
-  // glBindRenderbuffer(GL_RENDERBUFFER, terrain_lod_rbo);
-  // glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
-  // glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, terrain_lod_rbo);
+  unsigned int terrain_lod_rbo;
+  glGenRenderbuffers(1, &terrain_lod_rbo);
+  glBindRenderbuffer(GL_RENDERBUFFER, terrain_lod_rbo);
+  glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, window_width, window_height);
+  glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, terrain_lod_rbo);
 
   glm::mat4 normalMatrix = glm::transpose(glm::inverse(model));
   unsigned long frameCount = 1;
@@ -635,6 +696,36 @@ int main(int argc, char* argv[]) {
     glBindVertexArray(VAO);
     glDrawElements(GL_TRIANGLES, (y - 1) * (x - 1) * 2 * 3, GL_UNSIGNED_INT, 0);
 
+    // printf("Rendering water\n");
+    water_shader.use();
+    // printf("This worked\n");
+    water_shader.setMat4("model", glm::value_ptr(model));
+    // printf("Set water model matrix\n");
+    water_shader.setMat4("view", glm::value_ptr(view));
+    // printf("Set water view matrix\n");
+    water_shader.setMat4("projection", glm::value_ptr(projection));
+    // printf("Set water projection matrix\n");
+    water_shader.setVec3("cameraPos", camera.Position);
+    // printf("Set water camera position\n");
+    water_shader.setVec4("clearColor", clearColor);
+    // printf("Set water clear color\n");
+    water_shader.setFloat("fogStart", fogStart);
+    // printf("Set water fog start\n");
+    water_shader.setFloat("fogLength", fogLength);
+    // printf("Set water fog length\n");
+    water_shader.setFloat("seaLevel", SEA_LEVEL);
+    // printf("Set water sea level\n");
+    water_shader.setVec3("lightPos", lightPos);
+    // printf("Set water light position\n");
+    water_shader.setBool("enableFog", enableFog);
+    // printf("Set water enable fog\n");
+
+    glDisable(GL_DEPTH_TEST);
+    water_shader.setBool("near", true);
+    glBindVertexArray(VAO_WATER);
+    glDrawElements(GL_TRIANGLES, amount * 3, GL_UNSIGNED_INT, 0);
+    glEnable(GL_DEPTH_TEST);
+
     // render occlusion mask
     // always render occlusion mask with regular terrain
     glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -670,7 +761,7 @@ int main(int argc, char* argv[]) {
     godray_shader.use();
     godray_shader.setUnsignedInt("screenWidth", window_width);
     godray_shader.setUnsignedInt("screenHeight", window_height);
-    // godray_shader.setMat4("model", glm::value_ptr(model));
+    godray_shader.setMat4("model", glm::value_ptr(model));
     godray_shader.setMat4("view", glm::value_ptr(view));
     godray_shader.setMat4("projection", glm::value_ptr(projection));
     godray_shader.setVec4("clearColor", clearColor);
