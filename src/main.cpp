@@ -720,11 +720,10 @@ int main(int argc, char* argv[]) {
     water_shader.setBool("enableFog", enableFog);
     // printf("Set water enable fog\n");
 
-    glDisable(GL_DEPTH_TEST);
-    water_shader.setBool("near", true);
+    glDepthFunc(GL_LEQUAL);
     glBindVertexArray(VAO_WATER);
     glDrawElements(GL_TRIANGLES, amount * 3, GL_UNSIGNED_INT, 0);
-    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LESS);
 
     // render occlusion mask
     // always render occlusion mask with regular terrain
