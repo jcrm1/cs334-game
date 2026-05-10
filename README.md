@@ -5,6 +5,7 @@
 3. Run with `./build/Game <framerate (default 60)>` (or adjust the path for your OS and compiler)
    - Example: `./build/Game 60`
 
+The project requires CMake and a compatible build system for your operating system.
 Note that the program can take up to two minutes to start.
 
 ## Keybinds
